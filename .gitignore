@@ -1,0 +1,8 @@
+target
+.metals
+.idea
+metals.log
+metals.mv.db
+.vscode
+data/homeproperty
+data
