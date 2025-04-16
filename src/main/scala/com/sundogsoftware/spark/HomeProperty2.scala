@@ -14,6 +14,10 @@ object HomeProperty2 {
     StructType(fields)
   }
 
+  private def prefix_columns(prefix: String, long_prefix: String, columns: Array[String]): Array[org.apache.spark.sql.Column] = {
+    columns.map(col => F.col(s"$prefix.$col").alias(s"${col}_$long_prefix"))
+  }
+
   def main(args: Array[String]): Unit = {
 
     Logger.getLogger("org").setLevel(Level.ERROR)
@@ -225,54 +229,29 @@ object HomeProperty2 {
     logger.info("dfRef dropDuplicates")
     dfRef = dfRef.dropDuplicates("full_street_name_ref", "zip")
 
-    logger.info("join dfHomeProperty - dfHs")
-    val joined_dfHomeProperty_dfHs = dfHomeProperty.alias("p")
-      .join(dfHs.alias("h"),
-        F.col("p.ZIP5") === F.col("h.zip") &&
-          F.col("p.SITUS STREET ADDRESS") === F.col("h.full_street_name_hs")
-      )
+    val df_ref_columns = prefix_columns("ref", "ref", (dfRef.columns))
+    val df_base_columns = prefix_columns("base", "base", (dfHomeProperty.columns))
+    val df_hs_columns = prefix_columns("hs", "hs", (dfHs.columns))
 
-    // Select distinct records with formatted addresses
-    val resultDF_dfHomeProperty_dfHs = joined_dfHomeProperty_dfHs.select(
-      F.col("p.CLIP"),
-      F.col("p.FIPS CODE"),
-      F.col("p.APN (PARCEL NUMBER UNFORMATTED)"),
-      F.col("p.APN SEQUENCE NUMBER"),
-      F.col("p.COMPOSITE PROPERTY LINKAGE KEY"),
-      F.col("p.ORIGINAL APN"),
-      F.col("p.ONLINE FORMATTED PARCEL ID"),
-      F.col("p.ALTERNATE PARCEL ID"),
-      F.col("p.SITUS STREET ADDRESS"),
-      F.col("p.situs_city_state_zip"),
-      F.col("h.full_street_name_hs"),
-      F.col("h.full_city_state_zip_hs")
-    ).distinct()
+    logger.info("join dfHomeProperty - dfHs")
+    val joined_dfHomeProperty_dfHs = dfHomeProperty.alias("base")
+      .join(dfHs.alias("hs"),
+        F.col("base.ZIP5") === F.col("hs.zip") &&
+          F.col("base.SITUS STREET ADDRESS") === F.col("hs.full_street_name_hs")
+      )
+      .select(df_hs_columns ++ df_base_columns: _*)
 
     logger.info("join dfHomeProperty - dfRef")
 
-    val joined_dfHomeProperty_dfRef = dfHomeProperty.alias("p")
-      .join(dfRef.alias("h"),
-        F.col("p.ZIP5") === F.col("h.zip") &&
-          F.col("p.SITUS STREET ADDRESS") === F.col("h.full_street_name_ref")
+    val joined_dfHomeProperty_dfRef = dfHomeProperty.alias("base")
+      .join(dfRef.alias("ref"),
+        F.col("base.ZIP5") === F.col("ref.zip") &&
+          F.col("base.SITUS STREET ADDRESS") === F.col("ref.full_street_name_ref")
       )
-
-    val result_dfHomeProperty_dfRef = joined_dfHomeProperty_dfRef.select(
-      F.col("p.CLIP"),
-      F.col("p.FIPS CODE"),
-      F.col("p.APN (PARCEL NUMBER UNFORMATTED)"),
-      F.col("p.APN SEQUENCE NUMBER"),
-      F.col("p.COMPOSITE PROPERTY LINKAGE KEY"),
-      F.col("p.ORIGINAL APN"),
-      F.col("p.ONLINE FORMATTED PARCEL ID"),
-      F.col("p.ALTERNATE PARCEL ID"),
-      F.col("p.SITUS STREET ADDRESS"),
-      F.col("p.situs_city_state_zip"),
-      F.col("h.full_street_name_ref"),
-      F.col("h.full_city_state_zip_ref")
-    ).distinct()
+      .select(df_ref_columns ++ df_base_columns: _*)
 
     logger.info("Saving Home Sales - Recorder joined DataFrame to CSV")
-    resultDF_dfHomeProperty_dfHs
+    joined_dfHomeProperty_dfHs
       .coalesce(1)
       .write
       .option("header", "true")
@@ -280,7 +259,7 @@ object HomeProperty2 {
       .csv(s"$homePropertyPath/df_join_hs_recorder")
 
     logger.info("Saving Refinance - Recorder joined DataFrame to CSV")
-    result_dfHomeProperty_dfRef
+    joined_dfHomeProperty_dfRef
       .coalesce(1)
       .write
       .option("header", "true")
