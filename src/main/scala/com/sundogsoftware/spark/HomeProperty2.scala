@@ -20,6 +20,10 @@ object HomeProperty2 {
 
   def main(args: Array[String]): Unit = {
 
+    val ref_filename = "Ref_202501_202502.csv"
+    val hs_filename = "HS_202501_202502.csv"
+    val base_filename = "Property_202503_test.csv"
+
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
 
@@ -38,7 +42,7 @@ object HomeProperty2 {
     val sc = spark.sparkContext
     sc.setLogLevel("INFO")
 
-    val homePropertyPath = "D:\\old"
+    val homePropertyPath = "C:/Users/armen/Desktop/HomeProperty"
 
     logger.info("Reading input CSV files")
 
@@ -46,7 +50,7 @@ object HomeProperty2 {
     var dfRef = spark.read
       .option("header", "true")
       .option("inferSchema", "true")
-      .csv(s"$homePropertyPath/REF_202501/REF_202501.csv")
+      .csv(s"$homePropertyPath/$ref_filename")
     logger.info("Read REF_202501 successfully")
 
     logger.info("REF_202501 COUNT: " + dfRef.count())
@@ -55,43 +59,15 @@ object HomeProperty2 {
     var dfHs = spark.read
       .option("header", "true")
       .option("inferSchema", "true")
-      .csv(s"$homePropertyPath/HS_202501/HS_202501.csv")
+      .csv(s"$homePropertyPath/$hs_filename")
     logger.info("Read HS_202501 successfully")
 
     logger.info("HS_202501 COUNT: " + dfHs.count())
 
-    val homePropertySchema = createCustomSchema(List(
-      "CLIP",
-      "FIPS CODE",
-      "APN (PARCEL NUMBER UNFORMATTED)",
-      "APN SEQUENCE NUMBER",
-      "COMPOSITE PROPERTY LINKAGE KEY",
-      "ORIGINAL APN",
-      "ALTERNATE PARCEL ID",
-      "ONLINE FORMATTED PARCEL ID",
-      "SITUS HOUSE NUMBER",
-      "SITUS HOUSE NUMBER SUFFIX",
-      "SITUS HOUSE NUMBER 2",
-      "SITUS DIRECTION",
-      "SITUS STREET NAME",
-      "SITUS MODE",
-      "SITUS QUADRANT",
-      "SITUS UNIT NUMBER",
-      "SITUS CITY",
-      "SITUS STATE",
-      "SITUS ZIP CODE",
-      "SITUS COUNTY",
-      "SITUS CARRIER ROUTE",
-      "SITUS STREET ADDRESS",
-      "SITUS CITY STATE ZIP SOURCE",
-      "ZIP5",
-      "filedate"
-    ))
-
     var dfHomeProperty = spark.read
       .option("header", "true")
-      .schema(homePropertySchema)
-      .csv("data/homeproperty/test.csv")
+      .option("inferSchema", "true")
+      .csv(s"$homePropertyPath/$base_filename")
 
     logger.info("Read Property_202412 successfully")
 
@@ -141,7 +117,6 @@ object HomeProperty2 {
     )
 
     logger.info("Creating column full_street_name_ref")
-
     dfRef = dfRef.withColumn(
       "full_street_name_ref",
       F.concat_ws("",
@@ -252,7 +227,7 @@ object HomeProperty2 {
 
     logger.info("Saving Home Sales - Recorder joined DataFrame to CSV")
     joined_dfHomeProperty_dfHs
-      .coalesce(1)
+      // .coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
@@ -260,17 +235,17 @@ object HomeProperty2 {
 
     logger.info("Saving Refinance - Recorder joined DataFrame to CSV")
     joined_dfHomeProperty_dfRef
-      .coalesce(1)
+      //.coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
       .csv(s"$homePropertyPath/df_join_ref_rec")
 
-    logger.info("result_dfHomeProperty_dfRef")
-    // logger.info(result_dfHomeProperty_dfRef.count())
+    logger.info("joined_dfHomeProperty_dfHs")
+    logger.info(joined_dfHomeProperty_dfHs.count())
 
-    logger.info("resultDF_dfHomeProperty_dfHs")
-    // logger.info(resultDF_dfHomeProperty_dfHs.count())
+    logger.info("joined_dfHomeProperty_dfRef")
+    logger.info(joined_dfHomeProperty_dfRef.count())
 
     // result_dfHomeProperty_dfRef.show(truncate = false, numRows = 100)
     // resultDF_dfHomeProperty_dfHs.show(truncate = false, numRows = 100)
