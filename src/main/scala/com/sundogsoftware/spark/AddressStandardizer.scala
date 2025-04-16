@@ -627,4 +627,8 @@ object AddressStandardizer {
       address
     }
   }
+
+  val getOnly5DigitZip: UserDefinedFunction = udf((zip: String) => {
+    if (zip != null) zip.take(5) else null
+  })
 }
