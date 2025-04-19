@@ -22,7 +22,7 @@ object HomeProperty2 {
 
     val ref_filename = "Ref_202501_202502.csv" //
     val hs_filename = "HS_202501_202502.csv" //
-    val base_filename = "Property_202503.csv" // Property_202503_test.csv
+    val base_filename = "Property_202503_test.csv" // Property_202503_test.csv
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
@@ -31,6 +31,7 @@ object HomeProperty2 {
     val spark = SparkSession.builder()
       .appName("Scala Spark Home Property")
       .master("local[*]")
+      .config("spark.master", "local")
       .config("spark.driver.memory", "20g")
       .config("spark.executor.memory", "2g")
       .config("spark.driver.memoryOverhead", "4g")

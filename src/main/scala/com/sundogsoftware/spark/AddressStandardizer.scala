@@ -4,7 +4,599 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import StringCleaner._
 
+import scala.util.matching.Regex
+
 object AddressStandardizer {
+
+  private val patternsC1: Seq[(Regex, String)] = Seq(
+    "\\bALLEE\\b".r -> "ALY",
+    "\\bALLEY\\b".r -> "ALY",
+    "\\bALLY\\b".r -> "ALY",
+    "\\bALY\\b".r -> "ALY",
+    "\\bANEX\\b".r -> "ANX",
+    "\\bANNEX\\b".r -> "ANX",
+    "\\bANNX\\b".r -> "ANX",
+    "\\bANX\\b".r -> "ANX",
+    "\\bARC\\b".r -> "ARC",
+    "\\bARCADE\\b".r -> "ARC",
+    "\\bAV\\b".r -> "AVE",
+    "\\bAVE\\b".r -> "AVE",
+    "\\bAVEN\\b".r -> "AVE",
+    "\\bAVENU\\b".r -> "AVE",
+    "\\bAVENUE\\b".r -> "AVE",
+    "\\bAVN\\b".r -> "AVE",
+    "\\bAVNUE\\b".r -> "AVE",
+    "\\bBAYOO\\b".r -> "BAYOU",
+    "\\bBAYOU\\b".r -> "BAYOU",
+    "\\bBYU\\b".r -> "BAYOU",
+    "\\bBCH\\b".r -> "BCH",
+    "\\bBEACH\\b".r -> "BCH",
+    "\\bBEND\\b".r -> "BND",
+    "\\bBND\\b".r -> "BND",
+    "\\bBLF\\b".r -> "BLF",
+    "\\bBLUF\\b".r -> "BLF",
+    "\\bBLUFF\\b".r -> "BLF",
+    "\\bBLUFFS\\b".r -> "BLFS",
+    "\\bBLFS\\b".r -> "BLFS",
+    "\\bBOT\\b".r -> "BTM",
+    "\\bBTM\\b".r -> "BTM",
+    "\\bBOTTM\\b".r -> "BTM",
+    "\\bBOTTOM\\b".r -> "BTM",
+    "\\bBLVD\\b".r -> "BLVD",
+    "\\bBOUL\\b".r -> "BLVD",
+    "\\bBOULEVARD\\b".r -> "BLVD",
+    "\\bBOULV\\b".r -> "BLVD",
+    "\\bBR\\b".r -> "BR",
+    "\\bBRNCH\\b".r -> "BR",
+    "\\bBRANCH\\b".r -> "BR",
+    "\\bBRDGE\\b".r -> "BRG",
+    "\\bBRG\\b".r -> "BRG",
+    "\\bBRIDGE\\b".r -> "BRG",
+    "\\bBRK\\b".r -> "BRK",
+    "\\bBROOK\\b".r -> "BRK",
+    "\\bBROOKS\\b".r -> "BRKS",
+    "\\bBURG\\b".r -> "BG",
+    "\\bBURGS\\b".r -> "BGS",
+    "\\bBYP\\b".r -> "BYP",
+    "\\bBYPA\\b".r -> "BYP",
+    "\\bBYPAS\\b".r -> "BYP",
+    "\\bBYPASS\\b".r -> "BYP",
+    "\\bBYPS\\b".r -> "BYP",
+    "\\bCAMP\\b".r -> "CP",
+    "\\bCP\\b".r -> "CP",
+    "\\bCMP\\b".r -> "CP",
+    "\\bCANYN\\b".r -> "CYN",
+    "\\bCANYON\\b".r -> "CYN",
+    "\\bCNYN\\b".r -> "CYN",
+    "\\bCAPE\\b".r -> "CPE",
+    "\\bCPE\\b".r -> "CPE",
+    "\\bCAUSEWAY\\b".r -> "CSWY",
+    "\\bCAUSWA\\b".r -> "CSWY",
+    "\\bCSWY\\b".r -> "CSWY",
+    "\\bCEN\\b".r -> "CTR",
+    "\\bCENT\\b".r -> "CTR",
+    "\\bCENTER\\b".r -> "CTR",
+    "\\bCENTR\\b".r -> "CTR",
+    "\\bCENTRE\\b".r -> "CTR",
+    "\\bCNTER\\b".r -> "CTR",
+    "\\bCNTR\\b".r -> "CTR",
+    "\\bCTR\\b".r -> "CTR",
+    "\\bCENTERS\\b".r -> "CTRS",
+    "\\bCIR\\b".r -> "CIR",
+    "\\bCIRC\\b".r -> "CIR",
+    "\\bCIRCL\\b".r -> "CIR",
+    "\\bCIRCLE\\b".r -> "CIR",
+    "\\bCRCL\\b".r -> "CIR",
+    "\\bCRCLE\\b".r -> "CIR",
+    "\\bCIRCLES\\b".r -> "CIRS",
+    "\\bCLF\\b".r -> "CLF",
+    "\\bCLIFF\\b".r -> "CLF",
+    "\\bCLFS\\b".r -> "CLFS",
+    "\\bCLIFFS\\b".r -> "CLFS",
+    "\\bCLB\\b".r -> "CLB",
+    "\\bCLUB\\b".r -> "CLB",
+    "\\bCOMMON\\b".r -> "CMN",
+    "\\bCOMMONS\\b".r -> "CMNS",
+    "\\bCOR\\b".r -> "COR",
+    "\\bCORNER\\b".r -> "COR",
+    "\\bCORNERS\\b".r -> "CORS",
+    "\\bCORS\\b".r -> "CORS",
+    "\\bCOURSE\\b".r -> "CRSE",
+    "\\bCRSE\\b".r -> "CRSE",
+    "\\bCOURT\\b".r -> "CT",
+    "\\bCT\\b".r -> "CT",
+    "\\bCOURTS\\b".r -> "CTS",
+    "\\bCTS\\b".r -> "CTS",
+    "\\bCOVE\\b".r -> "CV",
+    "\\bCV\\b".r -> "CV",
+    "\\bCOVES\\b".r -> "CVS",
+    "\\bCREEK\\b".r -> "CRK",
+    "\\bCRK\\b".r -> "CRK",
+    "\\bCRESCENT\\b".r -> "CRES",
+    "\\bCRES\\b".r -> "CRES",
+    "\\bCRSENT\\b".r -> "CRES",
+    "\\bCRSNT\\b".r -> "CRES",
+    "\\bCREST\\b".r -> "CRST",
+    "\\bCROSSING\\b".r -> "XING",
+    "\\bCRSSNG\\b".r -> "XING",
+    "\\bXING\\b".r -> "XING",
+    "\\bCROSSROAD\\b".r -> "XRD",
+    "\\bCROSSROADS\\b".r -> "XRDS",
+    "\\bCURVE\\b".r -> "CURV",
+    "\\bDALE\\b".r -> "DL",
+    "\\bDL\\b".r -> "DL",
+    "\\bDAM\\b".r -> "DM",
+    "\\bDM\\b".r -> "DM",
+    "\\bDIV\\b".r -> "DV",
+    "\\bDIVIDE\\b".r -> "DV",
+    "\\bDV\\b".r -> "DV",
+    "\\bDVD\\b".r -> "DV",
+    "\\bDR\\b".r -> "DR",
+    "\\bDRIV\\b".r -> "DR",
+    "\\bDRIVE\\b".r -> "DR",
+    "\\bDRV\\b".r -> "DR",
+    "\\bDRIVES\\b".r -> "DRS",
+    "\\bEST\\b".r -> "EST",
+    "\\bESTATE\\b".r -> "EST",
+    "\\bESTATES\\b".r -> "ESTS",
+    "\\bESTS\\b".r -> "ESTS",
+    "\\bEXP\\b".r -> "EXPY",
+    "\\bEXPR\\b".r -> "EXPY",
+    "\\bEXPRESS\\b".r -> "EXPY",
+    "\\bEXPRESSWAY\\b".r -> "EXPY",
+    "\\bEXPW\\b".r -> "EXPY",
+    "\\bEXPY\\b".r -> "EXPY",
+    "\\bEXT\\b".r -> "EXT",
+    "\\bEXTENSION\\b".r -> "EXT",
+    "\\bEXTN\\b".r -> "EXT",
+    "\\bEXTNSN\\b".r -> "EXT",
+    "\\bEXTS\\b".r -> "EXTS",
+    "\\bFALL\\b".r -> "FALL",
+    "\\bFALLS\\b".r -> "FLS",
+    "\\bFLS\\b".r -> "FLS",
+    "\\bFERRY\\b".r -> "FRY",
+    "\\bFRRY\\b".r -> "FRY",
+    "\\bFRY\\b".r -> "FRY",
+    "\\bFIELD\\b".r -> "FLD",
+    "\\bFLD\\b".r -> "FLD",
+    "\\bFIELDS\\b".r -> "FLDS",
+    "\\bFLDS\\b".r -> "FLDS",
+    "\\bFLAT\\b".r -> "FLT",
+    "\\bFLT\\b".r -> "FLT",
+    "\\bFLATS\\b".r -> "FLTS",
+    "\\bFLTS\\b".r -> "FLTS",
+    "\\bFORD\\b".r -> "FRD",
+    "\\bFRD\\b".r -> "FRD",
+    "\\bFORDS\\b".r -> "FRDS",
+    "\\bFOREST\\b".r -> "FRST",
+    "\\bFORESTS\\b".r -> "FRST",
+    "\\bFRST\\b".r -> "FRST",
+    "\\bFORG\\b".r -> "FRG",
+    "\\bFORGE\\b".r -> "FRG",
+    "\\bFRG\\b".r -> "FRG",
+    "\\bFORGES\\b".r -> "FRGS",
+    "\\bFORK\\b".r -> "FRK",
+    "\\bFRK\\b".r -> "FRK",
+    "\\bFORKS\\b".r -> "FRKS",
+    "\\bFRKS\\b".r -> "FRKS",
+    "\\bFORT\\b".r -> "FT",
+    "\\bFRT\\b".r -> "FT",
+    "\\bFT\\b".r -> "FT",
+    "\\bFREEWAY\\b".r -> "FWY",
+    "\\bFREEWY\\b".r -> "FWY",
+    "\\bFRWAY\\b".r -> "FWY",
+    "\\bFRWY\\b".r -> "FWY",
+    "\\bFWY\\b".r -> "FWY",
+    "\\bGARDEN\\b".r -> "GDN",
+    "\\bGARDN\\b".r -> "GDN",
+    "\\bGRDEN\\b".r -> "GDN",
+    "\\bGRDN\\b".r -> "GDN",
+    "\\bGARDENS\\b".r -> "GDNS",
+    "\\bGDNS\\b".r -> "GDNS",
+    "\\bGRDNS\\b".r -> "GDNS",
+    "\\bGATEWAY\\b".r -> "GTWY",
+    "\\bGATEWY\\b".r -> "GTWY",
+    "\\bGATWAY\\b".r -> "GTWY",
+    "\\bGTWAY\\b".r -> "GTWY",
+    "\\bGTWY\\b".r -> "GTWY",
+    "\\bGLEN\\b".r -> "GLN",
+    "\\bGLN\\b".r -> "GLN",
+    "\\bGLENS\\b".r -> "GLNS",
+    "\\bGREEN\\b".r -> "GRN",
+    "\\bGRN\\b".r -> "GRN",
+    "\\bGREENS\\b".r -> "GRNS",
+    "\\bGROV\\b".r -> "GRV",
+    "\\bGROVE\\b".r -> "GRV",
+    "\\bGRV\\b".r -> "GRV",
+    "\\bGROVES\\b".r -> "GRVS",
+    "\\bHARB\\b".r -> "HBR",
+    "\\bHARBOR\\b".r -> "HBR",
+    "\\bHARBR\\b".r -> "HBR",
+    "\\bHBR\\b".r -> "HBR",
+    "\\bHRBOR\\b".r -> "HBR",
+    "\\bHARBORS\\b".r -> "HBRS",
+    "\\bHAVEN\\b".r -> "HVN",
+    "\\bHVN\\b".r -> "HVN",
+    "\\bHT\\b".r -> "HTS",
+    "\\bHEIGHTS\\b".r -> "HTS",
+    "\\bHTS\\b".r -> "HTS",
+    "\\bHIGHWAY\\b".r -> "HWY",
+    "\\bHIGHWY\\b".r -> "HWY",
+    "\\bHIWAY\\b".r -> "HWY",
+    "\\bHIWY\\b".r -> "HWY",
+    "\\bHWAY\\b".r -> "HWY",
+    "\\bHWY\\b".r -> "HWY",
+    "\\bHILL\\b".r -> "HL",
+    "\\bHL\\b".r -> "HL",
+    "\\bHILLS\\b".r -> "HLS",
+    "\\bHLS\\b".r -> "HLS",
+    "\\bHLLW\\b".r -> "HOLW",
+    "\\bHOLLOW\\b".r -> "HOLW",
+    "\\bHOLLOWS\\b".r -> "HOLW",
+    "\\bHOLW\\b".r -> "HOLW",
+    "\\bHOLWS\\b".r -> "HOLW",
+    "\\bINLT\\b".r -> "INLT",
+    "\\bINLET\\b".r -> "INLT",
+    "\\bIS\\b".r -> "IS",
+    "\\bISLAND\\b".r -> "IS",
+    "\\bISLND\\b".r -> "IS",
+    "\\bISLANDS\\b".r -> "ISS",
+    "\\bISLNDS\\b".r -> "ISS",
+    "\\bISS\\b".r -> "ISS",
+    "\\bISLE\\b".r -> "ISLE",
+    "\\bISLES\\b".r -> "ISLE",
+    "\\bJCT\\b".r -> "JCT",
+    "\\bJCTION\\b".r -> "JCT",
+    "\\bJCTN\\b".r -> "JCT",
+    "\\bJUNCTION\\b".r -> "JCT",
+    "\\bJUNCTN\\b".r -> "JCT",
+    "\\bJUNCTON\\b".r -> "JCT",
+    "\\bJCTNS\\b".r -> "JCTS",
+    "\\bJCTS\\b".r -> "JCTS",
+    "\\bJUNCTIONS\\b".r -> "JCTS",
+    "\\bKEY\\b".r -> "KY",
+    "\\bKY\\b".r -> "KY",
+    "\\bKEYS\\b".r -> "KYS",
+    "\\bKYS\\b".r -> "KYS",
+    "\\bKNL\\b".r -> "KNL",
+    "\\bKNOL\\b".r -> "KNL",
+    "\\bKNOLL\\b".r -> "KNL",
+    "\\bKNLS\\b".r -> "KNLS",
+    "\\bKNOLLS\\b".r -> "KNLS",
+    "\\bLK\\b".r -> "LK",
+    "\\bLAKE\\b".r -> "LK",
+    "\\bLKS\\b".r -> "LKS",
+    "\\bLAKES\\b".r -> "LKS",
+    "\\bLAND\\b".r -> "LAND",
+    "\\bLANDING\\b".r -> "LNDG",
+    "\\bLNDG\\b".r -> "LNDG",
+    "\\bLNDNG\\b".r -> "LNDG",
+    "\\bLANE\\b".r -> "LN",
+    "\\bLN\\b".r -> "LN",
+    "\\bLGT\\b".r -> "LGT",
+    "\\bLIGHT\\b".r -> "LGT",
+    "\\bLIGHTS\\b".r -> "LGTS",
+    "\\bLF\\b".r -> "LF",
+    "\\bLOAF\\b".r -> "LF",
+    "\\bLCK\\b".r -> "LCK",
+    "\\bLOCK\\b".r -> "LCK",
+    "\\bLCKS\\b".r -> "LCKS",
+    "\\bLOCKS\\b".r -> "LCKS",
+    "\\bLDG\\b".r -> "LDG",
+    "\\bLDGE\\b".r -> "LDG",
+    "\\bLODG\\b".r -> "LDG",
+    "\\bLODGE\\b".r -> "LDG",
+    "\\bLOOP\\b".r -> "LOOP",
+    "\\bLOOPS\\b".r -> "LOOP",
+    "\\bMALL\\b".r -> "MALL",
+    "\\bMNR\\b".r -> "MNR",
+    "\\bMANOR\\b".r -> "MNR",
+    "\\bMANORS\\b".r -> "MNRS",
+    "\\bMNRS\\b".r -> "MNRS",
+    "\\bMEADOW\\b".r -> "MDW",
+    "\\bMDW\\b".r -> "MDWS",
+    "\\bMDWS\\b".r -> "MDWS",
+    "\\bMEADOWS\\b".r -> "MDWS",
+    "\\bMEDOWS\\b".r -> "MDWS",
+    "\\bMEWS\\b".r -> "MEWS",
+    "\\bMILL\\b".r -> "ML",
+    "\\bMILLS\\b".r -> "MLS",
+    "\\bMISSN\\b".r -> "MSN",
+    "\\bMSSN\\b".r -> "MSN",
+    "\\bMOTORWAY\\b".r -> "MTWY",
+    "\\bMNT\\b".r -> "MT",
+    "\\bMT\\b".r -> "MT",
+    "\\bMOUNT\\b".r -> "MT",
+    "\\bMNTAIN\\b".r -> "MTN",
+    "\\bMNTN\\b".r -> "MTN",
+    "\\bMOUNTAIN\\b".r -> "MTN",
+    "\\bMOUNTIN\\b".r -> "MTN",
+    "\\bMTIN\\b".r -> "MTN",
+    "\\bMTN\\b".r -> "MTN",
+    "\\bMNTNS\\b".r -> "MTNS",
+    "\\bMOUNTAINS\\b".r -> "MTNS",
+    "\\bNCK\\b".r -> "NCK",
+    "\\bNECK\\b".r -> "NCK",
+    "\\bORCH\\b".r -> "ORCH",
+    "\\bORCHARD\\b".r -> "ORCH",
+    "\\bORCHRD\\b".r -> "ORCH",
+    "\\bOVAL\\b".r -> "OVAL",
+    "\\bOVL\\b".r -> "OVAL",
+    "\\bOVERPASS\\b".r -> "OPAS",
+    "\\bPARK\\b".r -> "PARK",
+    "\\bPRK\\b".r -> "PARK",
+    "\\bPARKS\\b".r -> "PARK",
+    "\\bPARKWAY\\b".r -> "PKWY",
+    "\\bPARKWY\\b".r -> "PKWY",
+    "\\bPKWAY\\b".r -> "PKWY",
+    "\\bPKWY\\b".r -> "PKWY",
+    "\\bPKY\\b".r -> "PKWY",
+    "\\bPARKWAYS\\b".r -> "PKWY",
+    "\\bPKWYS\\b".r -> "PKWY",
+    "\\bPASS\\b".r -> "PASS",
+    "\\bPASSAGE\\b".r -> "PSGE",
+    "\\bPATH\\b".r -> "PATH",
+    "\\bPATHS\\b".r -> "PATH",
+    "\\bPIKE\\b".r -> "PIKE",
+    "\\bPIKES\\b".r -> "PIKE",
+    "\\bPINE\\b".r -> "PNE",
+    "\\bPINES\\b".r -> "PNES",
+    "\\bPNES\\b".r -> "PNES",
+    "\\bPL\\b".r -> "PL",
+    "\\bPLACE\\b".r -> "PL",
+    "\\bPLAIN\\b".r -> "PLN",
+    "\\bPLN\\b".r -> "PLN",
+    "\\bPLAINS\\b".r -> "PLNS",
+    "\\bPLNS\\b".r -> "PLNS",
+    "\\bPLAZA\\b".r -> "PLZ",
+    "\\bPLZ\\b".r -> "PLZ",
+    "\\bPLZA\\b".r -> "PLZ",
+    "\\bPOINT\\b".r -> "PT",
+    "\\bPT\\b".r -> "PT",
+    "\\bPOINTS\\b".r -> "PTS",
+    "\\bPTS\\b".r -> "PTS",
+    "\\bPORT\\b".r -> "PRT",
+    "\\bPRT\\b".r -> "PRT",
+    "\\bPORTS\\b".r -> "PRTS",
+    "\\bPRTS\\b".r -> "PRTS",
+    "\\bPR\\b".r -> "PR",
+    "\\bPRAIRIE\\b".r -> "PR",
+    "\\bPRR\\b".r -> "PR",
+    "\\bRAD\\b".r -> "RADL",
+    "\\bRADIAL\\b".r -> "RADL",
+    "\\bRADIEL\\b".r -> "RADL",
+    "\\bRADL\\b".r -> "RADL",
+    "\\bRAMP\\b".r -> "RAMP",
+    "\\bRANCH\\b".r -> "RNCH",
+    "\\bRANCHES\\b".r -> "RNCH",
+    "\\bRNCH\\b".r -> "RNCH",
+    "\\bRNCHS\\b".r -> "RNCH",
+    "\\bRAPID\\b".r -> "RPD",
+    "\\bRPD\\b".r -> "RPD",
+    "\\bRAPIDS\\b".r -> "RPDS",
+    "\\bRPDS\\b".r -> "RPDS",
+    "\\bREST\\b".r -> "RST",
+    "\\bRST\\b".r -> "RST",
+    "\\bRDG\\b".r -> "RDG",
+    "\\bRDGE\\b".r -> "RDG",
+    "\\bRIDGE\\b".r -> "RDG",
+    "\\bRDGS\\b".r -> "RDGS",
+    "\\bRIDGES\\b".r -> "RDGS",
+    "\\bRIV\\b".r -> "RIV",
+    "\\bRIVER\\b".r -> "RIV",
+    "\\bRVR\\b".r -> "RIV",
+    "\\bRIVR\\b".r -> "RIV",
+    "\\bRD\\b".r -> "RD",
+    "\\bROAD\\b".r -> "RD",
+    "\\bROADS\\b".r -> "RDS",
+    "\\bRDS\\b".r -> "RDS",
+    "\\bROUTE\\b".r -> "RTE",
+    "\\bROW\\b".r -> "ROW",
+    "\\bRUE\\b".r -> "RUE",
+    "\\bRUN\\b".r -> "RUN",
+    "\\bSHL\\b".r -> "SHL",
+    "\\bSHOAL\\b".r -> "SHL",
+    "\\bSHLS\\b".r -> "SHLS",
+    "\\bSHOALS\\b".r -> "SHLS",
+    "\\bSHOAR\\b".r -> "SHR",
+    "\\bSHORE\\b".r -> "SHR",
+    "\\bSHR\\b".r -> "SHR",
+    "\\bSHOARS\\b".r -> "SHRS",
+    "\\bSHORES\\b".r -> "SHRS",
+    "\\bSHRS\\b".r -> "SHRS",
+    "\\bSKYWAY\\b".r -> "SKWY",
+    "\\bSPG\\b".r -> "SPG",
+    "\\bSPNG\\b".r -> "SPG",
+    "\\bSPRING\\b".r -> "SPG",
+    "\\bSPRNG\\b".r -> "SPG",
+    "\\bSPGS\\b".r -> "SPGS",
+    "\\bSPNGS\\b".r -> "SPGS",
+    "\\bSPRINGS\\b".r -> "SPGS",
+    "\\bSPRNGS\\b".r -> "SPGS",
+    "\\bSPUR\\b".r -> "SPUR",
+    "\\bSPURS\\b".r -> "SPUR",
+    "\\bSQ\\b".r -> "SQ",
+    "\\bSQR\\b".r -> "SQ",
+    "\\bSQRE\\b".r -> "SQ",
+    "\\bSQU\\b".r -> "SQ",
+    "\\bSQUARE\\b".r -> "SQ",
+    "\\bSQRS\\b".r -> "SQS",
+    "\\bSQUARES\\b".r -> "SQS",
+    "\\bSTA\\b".r -> "STA",
+    "\\bSTATION\\b".r -> "STA",
+    "\\bSTATN\\b".r -> "STA",
+    "\\bSTN\\b".r -> "STA",
+    "\\bSTRA\\b".r -> "STRA",
+    "\\bSTRAV\\b".r -> "STRA",
+    "\\bSTRAVEN\\b".r -> "STRA",
+    "\\bSTRAVENUE\\b".r -> "STRA",
+    "\\bSTRAVN\\b".r -> "STRA",
+    "\\bSTRVN\\b".r -> "STRA",
+    "\\bSTRVNUE\\b".r -> "STRA",
+    "\\bSTREAM\\b".r -> "STRM",
+    "\\bSTREME\\b".r -> "STRM",
+    "\\bSTRM\\b".r -> "STRM",
+    "\\bSTREET\\b".r -> "ST",
+    "\\bSTRT\\b".r -> "ST",
+    "\\bST\\b".r -> "ST",
+    "\\bSTR\\b".r -> "ST",
+    "\\bSTREETS\\b".r -> "STS",
+    "\\bSMT\\b".r -> "SMT",
+    "\\bSUMIT\\b".r -> "SMT",
+    "\\bSUMITT\\b".r -> "SMT",
+    "\\bSUMMIT\\b".r -> "SMT",
+    "\\bTER\\b".r -> "TER",
+    "\\bTERR\\b".r -> "TER",
+    "\\bTERRACE\\b".r -> "TER",
+    "\\bTHROUGHWAY\\b".r -> "TRWY",
+    "\\bTRACE\\b".r -> "TRCE",
+    "\\bTRACES\\b".r -> "TRCE",
+    "\\bTRCE\\b".r -> "TRCE",
+    "\\bTRACK\\b".r -> "TRAK",
+    "\\bTRACKS\\b".r -> "TRAK",
+    "\\bTRAK\\b".r -> "TRAK",
+    "\\bTRK\\b".r -> "TRAK",
+    "\\bTRKS\\b".r -> "TRAK",
+    "\\bTRAFFICWAY\\b".r -> "TRFY",
+    "\\bTRAIL\\b".r -> "TRL",
+    "\\bTRAILS\\b".r -> "TRL",
+    "\\bTRL\\b".r -> "TRL",
+    "\\bTRLS\\b".r -> "TRL",
+    "\\bTRAILER\\b".r -> "TRLR",
+    "\\bTRLR\\b".r -> "TRLR",
+    "\\bTRLRS\\b".r -> "TRLR",
+    "\\bTUNEL\\b".r -> "TUNL",
+    "\\bTUNL\\b".r -> "TUNL",
+    "\\bTUNLS\\b".r -> "TUNL",
+    "\\bTUNNEL\\b".r -> "TUNL",
+    "\\bTUNNELS\\b".r -> "TUNL",
+    "\\bTUNNL\\b".r -> "TUNL",
+    "\\bTRNPK\\b".r -> "TPKE",
+    "\\bTURNPIKE\\b".r -> "TPKE",
+    "\\bTURNPK\\b".r -> "TPKE",
+    "\\bUNDERPASS\\b".r -> "UPAS",
+    "\\bUN\\b".r -> "UN",
+    "\\bUNION\\b".r -> "UN",
+    "\\bUNIONS\\b".r -> "UNS",
+    "\\bVALLEY\\b".r -> "VLY",
+    "\\bVALLY\\b".r -> "VLY",
+    "\\bVLLY\\b".r -> "VLY",
+    "\\bVLY\\b".r -> "VLY",
+    "\\bVALLEYS\\b".r -> "VLYS",
+    "\\bVLYS\\b".r -> "VLYS",
+    "\\bVDCT\\b".r -> "VIA",
+    "\\bVIA\\b".r -> "VIA",
+    "\\bVIADCT\\b".r -> "VIA",
+    "\\bVIADUCT\\b".r -> "VIA",
+    "\\bVIEW\\b".r -> "VW",
+    "\\bVW\\b".r -> "VW",
+    "\\bVIEWS\\b".r -> "VWS",
+    "\\bVWS\\b".r -> "VWS",
+    "\\bVILL\\b".r -> "VLG",
+    "\\bVILLAG\\b".r -> "VLG",
+    "\\bVILLAGE\\b".r -> "VLG",
+    "\\bVILLG\\b".r -> "VLG",
+    "\\bVILLIAGE\\b".r -> "VLG",
+    "\\bVLG\\b".r -> "VLG",
+    "\\bVILLAGES\\b".r -> "VLGS",
+    "\\bVLGS\\b".r -> "VLGS",
+    "\\bVILLE\\b".r -> "VL",
+    "\\bVL\\b".r -> "VL",
+    "\\bVIS\\b".r -> "VIS",
+    "\\bVIST\\b".r -> "VIS",
+    "\\bVISTA\\b".r -> "VIS",
+    "\\bVST\\b".r -> "VIS",
+    "\\bVSTA\\b".r -> "VIS",
+    "\\bWALK\\b".r -> "WALK",
+    "\\bWALKS\\b".r -> "WALK",
+    "\\bWALL\\b".r -> "WALL",
+    "\\bWY\\b".r -> "WAY",
+    "\\bWAY\\b".r -> "WAY",
+    "\\bWAYS\\b".r -> "WAYS",
+    "\\bWELL\\b".r -> "WL",
+    "\\bWELLS\\b".r -> "WLS",
+    "\\bWLS\\b".r -> "WLS",
+  )
+
+  private val patternsC2: Seq[(Regex, String)] = Seq(
+    "\\bAPARTMENT\\b".r -> "APT",
+    "\\bBASEMENT\\b".r -> "BSMT",
+    "\\bBUILDING\\b".r -> "BLDG",
+    "\\bDEPARTMENT\\b".r -> "DEPT",
+    "\\bFLOOR\\b".r -> "FL",
+    "\\bFRONT\\b".r -> "FRNT",
+    "\\bHANGER\\b".r -> "HNGR",
+    "\\bKEY\\b".r -> "KEY",
+    "\\bLOBBY\\b".r -> "LBBY",
+    "\\bLOT\\b".r -> "LOT",
+    "\\bLOWER\\b".r -> "LOWR",
+    "\\bOFFICE\\b".r -> "OFC",
+    "\\bPENTHOUSE\\b".r -> "PH",
+    "\\bPIER\\b".r -> "PIER",
+    "\\bREAR\\b".r -> "REAR",
+    "\\bROOM\\b".r -> "RM",
+    "\\bSIDE\\b".r -> "SIDE",
+    "\\bSLIP\\b".r -> "SLIP",
+    "\\bSPACE\\b".r -> "SPC",
+    "\\bSTOP\\b".r -> "STOP",
+    "\\bSUITE\\b".r -> "STE",
+    "\\bTRAILER\\b".r -> "TRLR",
+    "\\bUNIT\\b".r -> "UNIT",
+    "\\bUPPER\\b".r -> "UPPR",
+  )
+
+  private val patternsState: Seq[(Regex, String)] = Seq(
+    "\\bALABAMA\\b".r -> "AL",
+    "\\bALASKA\\b".r -> "AK",
+    "\\bARIZONA\\b".r -> "AZ",
+    "\\bARKANSAS\\b".r -> "AR",
+    "\\bCALIFORNIA\\b".r -> "CA",
+    "\\bCOLORADO\\b".r -> "CO",
+    "\\bCONNECTICUT\\b".r -> "CT",
+    "\\bDELAWARE\\b".r -> "DE",
+    "\\bFLORIDA\\b".r -> "FL",
+    "\\bGEORGIA\\b".r -> "GA",
+    "\\bHAWAII\\b".r -> "HI",
+    "\\bIDAHO\\b".r -> "ID",
+    "\\bILLINOIS\\b".r -> "IL",
+    "\\bINDIANA\\b".r -> "IN",
+    "\\bIOWA\\b".r -> "IA",
+    "\\bKANSAS\\b".r -> "KS",
+    "\\bKENTUCKY\\b".r -> "KY",
+    "\\bLOUISIANA\\b".r -> "LA",
+    "\\bMAINE\\b".r -> "ME",
+    "\\bMARYLAND\\b".r -> "MD",
+    "\\bMASSACHUSETTS\\b".r -> "MA",
+    "\\bMICHIGAN\\b".r -> "MI",
+    "\\bMINNESOTA\\b".r -> "MN",
+    "\\bMISSISSIPPI\\b".r -> "MS",
+    "\\bMISSOURI\\b".r -> "MO",
+    "\\bMONTANA\\b".r -> "MT",
+    "\\bNEBRASKA\\b".r -> "NE",
+    "\\bNEVADA\\b".r -> "NV",
+    "\\bNEW HAMPSHIRE\\b".r -> "NH",
+    "\\bNEW JERSEY\\b".r -> "NJ",
+    "\\bNEW MEXICO\\b".r -> "NM",
+    "\\bNEW YORK\\b".r -> "NY",
+    "\\bNORTH CAROLINA\\b".r -> "NC",
+    "\\bNORTH DAKOTA\\b".r -> "ND",
+    "\\bOHIO\\b".r -> "OH",
+    "\\bOKLAHOMA\\b".r -> "OK",
+    "\\bOREGON\\b".r -> "OR",
+    "\\bPENNSYLVANIA\\b".r -> "PA",
+    "\\bRHODE ISLAND\\b".r -> "RI",
+    "\\bSOUTH CAROLINA\\b".r -> "SC",
+    "\\bSOUTH DAKOTA\\b".r -> "SD",
+    "\\bTENNESSEE\\b".r -> "TN",
+    "\\bTEXAS\\b".r -> "TX",
+    "\\bUTAH\\b".r -> "UT",
+    "\\bVERMONT\\b".r -> "VT",
+    "\\bVIRGINIA\\b".r -> "VA",
+    "\\bWASHINGTON\\b".r -> "WA",
+    "\\bWEST VIRGINIA\\b".r -> "WV",
+    "\\bWISCONSIN\\b".r -> "WI",
+    "\\bWYOMING\\b".r -> "WY",
+  )
 
   var standardizeAddress: UserDefinedFunction = udf((input: String) => {
     if (input == null) null
@@ -22,514 +614,9 @@ object AddressStandardizer {
     if (input == null) null
     else {
       var address = input.toUpperCase
-        .replaceAll("\\bALLEE\\b", "ALY")
-        .replaceAll("\\bALLEY\\b", "ALY")
-        .replaceAll("\\bALLY\\b", "ALY")
-        .replaceAll("\\bALY\\b", "ALY")
-        .replaceAll("\\bANEX\\b", "ANX")
-        .replaceAll("\\bANNEX\\b", "ANX")
-        .replaceAll("\\bANNX\\b", "ANX")
-        .replaceAll("\\bANX\\b", "ANX")
-        .replaceAll("\\bARC\\b", "ARC")
-        .replaceAll("\\bARCADE\\b", "ARC")
-        .replaceAll("\\bAV\\b", "AVE")
-        .replaceAll("\\bAVE\\b", "AVE")
-        .replaceAll("\\bAVEN\\b", "AVE")
-        .replaceAll("\\bAVENU\\b", "AVE")
-        .replaceAll("\\bAVENUE\\b", "AVE")
-        .replaceAll("\\bAVN\\b", "AVE")
-        .replaceAll("\\bAVNUE\\b", "AVE")
-        .replaceAll("\\bBAYOO\\b", "BAYOU")
-        .replaceAll("\\bBAYOU\\b", "BAYOU")
-        .replaceAll("\\bBYU\\b", "BAYOU")
-        .replaceAll("\\bBCH\\b", "BCH")
-        .replaceAll("\\bBEACH\\b", "BCH")
-        .replaceAll("\\bBEND\\b", "BND")
-        .replaceAll("\\bBND\\b", "BND")
-        .replaceAll("\\bBLF\\b", "BLF")
-        .replaceAll("\\bBLUF\\b", "BLF")
-        .replaceAll("\\bBLUFF\\b", "BLF")
-        .replaceAll("\\bBLUFFS\\b", "BLFS")
-        .replaceAll("\\bBLFS\\b", "BLFS")
-        .replaceAll("\\bBOT\\b", "BTM")
-        .replaceAll("\\bBTM\\b", "BTM")
-        .replaceAll("\\bBOTTM\\b", "BTM")
-        .replaceAll("\\bBOTTOM\\b", "BTM")
-        .replaceAll("\\bBLVD\\b", "BLVD")
-        .replaceAll("\\bBOUL\\b", "BLVD")
-        .replaceAll("\\bBOULEVARD\\b", "BLVD")
-        .replaceAll("\\bBOULV\\b", "BLVD")
-        .replaceAll("\\bBR\\b", "BR")
-        .replaceAll("\\bBRNCH\\b", "BR")
-        .replaceAll("\\bBRANCH\\b", "BR")
-        .replaceAll("\\bBRDGE\\b", "BRG")
-        .replaceAll("\\bBRG\\b", "BRG")
-        .replaceAll("\\bBRIDGE\\b", "BRG")
-        .replaceAll("\\bBRK\\b", "BRK")
-        .replaceAll("\\bBROOK\\b", "BRK")
-        .replaceAll("\\bBROOKS\\b", "BRKS")
-        .replaceAll("\\bBURG\\b", "BG")
-        .replaceAll("\\bBURGS\\b", "BGS")
-        .replaceAll("\\bBYP\\b", "BYP")
-        .replaceAll("\\bBYPA\\b", "BYP")
-        .replaceAll("\\bBYPAS\\b", "BYP")
-        .replaceAll("\\bBYPASS\\b", "BYP")
-        .replaceAll("\\bBYPS\\b", "BYP")
-        .replaceAll("\\bCAMP\\b", "CP")
-        .replaceAll("\\bCP\\b", "CP")
-        .replaceAll("\\bCMP\\b", "CP")
-        .replaceAll("\\bCANYN\\b", "CYN")
-        .replaceAll("\\bCANYON\\b", "CYN")
-        .replaceAll("\\bCNYN\\b", "CYN")
-        .replaceAll("\\bCAPE\\b", "CPE")
-        .replaceAll("\\bCPE\\b", "CPE")
-        .replaceAll("\\bCAUSEWAY\\b", "CSWY")
-        .replaceAll("\\bCAUSWA\\b", "CSWY")
-        .replaceAll("\\bCSWY\\b", "CSWY")
-        .replaceAll("\\bCEN\\b", "CTR")
-        .replaceAll("\\bCENT\\b", "CTR")
-        .replaceAll("\\bCENTER\\b", "CTR")
-        .replaceAll("\\bCENTR\\b", "CTR")
-        .replaceAll("\\bCENTRE\\b", "CTR")
-        .replaceAll("\\bCNTER\\b", "CTR")
-        .replaceAll("\\bCNTR\\b", "CTR")
-        .replaceAll("\\bCTR\\b", "CTR")
-        .replaceAll("\\bCENTERS\\b", "CTRS")
-        .replaceAll("\\bCIR\\b", "CIR")
-        .replaceAll("\\bCIRC\\b", "CIR")
-        .replaceAll("\\bCIRCL\\b", "CIR")
-        .replaceAll("\\bCIRCLE\\b", "CIR")
-        .replaceAll("\\bCRCL\\b", "CIR")
-        .replaceAll("\\bCRCLE\\b", "CIR")
-        .replaceAll("\\bCIRCLES\\b", "CIRS")
-        .replaceAll("\\bCLF\\b", "CLF")
-        .replaceAll("\\bCLIFF\\b", "CLF")
-        .replaceAll("\\bCLFS\\b", "CLFS")
-        .replaceAll("\\bCLIFFS\\b", "CLFS")
-        .replaceAll("\\bCLB\\b", "CLB")
-        .replaceAll("\\bCLUB\\b", "CLB")
-        .replaceAll("\\bCOMMON\\b", "CMN")
-        .replaceAll("\\bCOMMONS\\b", "CMNS")
-        .replaceAll("\\bCOR\\b", "COR")
-        .replaceAll("\\bCORNER\\b", "COR")
-        .replaceAll("\\bCORNERS\\b", "CORS")
-        .replaceAll("\\bCORS\\b", "CORS")
-        .replaceAll("\\bCOURSE\\b", "CRSE")
-        .replaceAll("\\bCRSE\\b", "CRSE")
-        .replaceAll("\\bCOURT\\b", "CT")
-        .replaceAll("\\bCT\\b", "CT")
-        .replaceAll("\\bCOURTS\\b", "CTS")
-        .replaceAll("\\bCTS\\b", "CTS")
-        .replaceAll("\\bCOVE\\b", "CV")
-        .replaceAll("\\bCV\\b", "CV")
-        .replaceAll("\\bCOVES\\b", "CVS")
-        .replaceAll("\\bCREEK\\b", "CRK")
-        .replaceAll("\\bCRK\\b", "CRK")
-        .replaceAll("\\bCRESCENT\\b", "CRES")
-        .replaceAll("\\bCRES\\b", "CRES")
-        .replaceAll("\\bCRSENT\\b", "CRES")
-        .replaceAll("\\bCRSNT\\b", "CRES")
-        .replaceAll("\\bCREST\\b", "CRST")
-        .replaceAll("\\bCROSSING\\b", "XING")
-        .replaceAll("\\bCRSSNG\\b", "XING")
-        .replaceAll("\\bXING\\b", "XING")
-        .replaceAll("\\bCROSSROAD\\b", "XRD")
-        .replaceAll("\\bCROSSROADS\\b", "XRDS")
-        .replaceAll("\\bCURVE\\b", "CURV")
-        .replaceAll("\\bDALE\\b", "DL")
-        .replaceAll("\\bDL\\b", "DL")
-        .replaceAll("\\bDAM\\b", "DM")
-        .replaceAll("\\bDM\\b", "DM")
-        .replaceAll("\\bDIV\\b", "DV")
-        .replaceAll("\\bDIVIDE\\b", "DV")
-        .replaceAll("\\bDV\\b", "DV")
-        .replaceAll("\\bDVD\\b", "DV")
-        .replaceAll("\\bDR\\b", "DR")
-        .replaceAll("\\bDRIV\\b", "DR")
-        .replaceAll("\\bDRIVE\\b", "DR")
-        .replaceAll("\\bDRV\\b", "DR")
-        .replaceAll("\\bDRIVES\\b", "DRS")
-        .replaceAll("\\bEST\\b", "EST")
-        .replaceAll("\\bESTATE\\b", "EST")
-        .replaceAll("\\bESTATES\\b", "ESTS")
-        .replaceAll("\\bESTS\\b", "ESTS")
-        .replaceAll("\\bEXP\\b", "EXPY")
-        .replaceAll("\\bEXPR\\b", "EXPY")
-        .replaceAll("\\bEXPRESS\\b", "EXPY")
-        .replaceAll("\\bEXPRESSWAY\\b", "EXPY")
-        .replaceAll("\\bEXPW\\b", "EXPY")
-        .replaceAll("\\bEXPY\\b", "EXPY")
-        .replaceAll("\\bEXT\\b", "EXT")
-        .replaceAll("\\bEXTENSION\\b", "EXT")
-        .replaceAll("\\bEXTN\\b", "EXT")
-        .replaceAll("\\bEXTNSN\\b", "EXT")
-        .replaceAll("\\bEXTS\\b", "EXTS")
-        .replaceAll("\\bFALL\\b", "FALL")
-        .replaceAll("\\bFALLS\\b", "FLS")
-        .replaceAll("\\bFLS\\b", "FLS")
-        .replaceAll("\\bFERRY\\b", "FRY")
-        .replaceAll("\\bFRRY\\b", "FRY")
-        .replaceAll("\\bFRY\\b", "FRY")
-        .replaceAll("\\bFIELD\\b", "FLD")
-        .replaceAll("\\bFLD\\b", "FLD")
-        .replaceAll("\\bFIELDS\\b", "FLDS")
-        .replaceAll("\\bFLDS\\b", "FLDS")
-        .replaceAll("\\bFLAT\\b", "FLT")
-        .replaceAll("\\bFLT\\b", "FLT")
-        .replaceAll("\\bFLATS\\b", "FLTS")
-        .replaceAll("\\bFLTS\\b", "FLTS")
-        .replaceAll("\\bFORD\\b", "FRD")
-        .replaceAll("\\bFRD\\b", "FRD")
-        .replaceAll("\\bFORDS\\b", "FRDS")
-        .replaceAll("\\bFOREST\\b", "FRST")
-        .replaceAll("\\bFORESTS\\b", "FRST")
-        .replaceAll("\\bFRST\\b", "FRST")
-        .replaceAll("\\bFORG\\b", "FRG")
-        .replaceAll("\\bFORGE\\b", "FRG")
-        .replaceAll("\\bFRG\\b", "FRG")
-        .replaceAll("\\bFORGES\\b", "FRGS")
-        .replaceAll("\\bFORK\\b", "FRK")
-        .replaceAll("\\bFRK\\b", "FRK")
-        .replaceAll("\\bFORKS\\b", "FRKS")
-        .replaceAll("\\bFRKS\\b", "FRKS")
-        .replaceAll("\\bFORT\\b", "FT")
-        .replaceAll("\\bFRT\\b", "FT")
-        .replaceAll("\\bFT\\b", "FT")
-        .replaceAll("\\bFREEWAY\\b", "FWY")
-        .replaceAll("\\bFREEWY\\b", "FWY")
-        .replaceAll("\\bFRWAY\\b", "FWY")
-        .replaceAll("\\bFRWY\\b", "FWY")
-        .replaceAll("\\bFWY\\b", "FWY")
-        .replaceAll("\\bGARDEN\\b", "GDN")
-        .replaceAll("\\bGARDN\\b", "GDN")
-        .replaceAll("\\bGRDEN\\b", "GDN")
-        .replaceAll("\\bGRDN\\b", "GDN")
-        .replaceAll("\\bGARDENS\\b", "GDNS")
-        .replaceAll("\\bGDNS\\b", "GDNS")
-        .replaceAll("\\bGRDNS\\b", "GDNS")
-        .replaceAll("\\bGATEWAY\\b", "GTWY")
-        .replaceAll("\\bGATEWY\\b", "GTWY")
-        .replaceAll("\\bGATWAY\\b", "GTWY")
-        .replaceAll("\\bGTWAY\\b", "GTWY")
-        .replaceAll("\\bGTWY\\b", "GTWY")
-        .replaceAll("\\bGLEN\\b", "GLN")
-        .replaceAll("\\bGLN\\b", "GLN")
-        .replaceAll("\\bGLENS\\b", "GLNS")
-        .replaceAll("\\bGREEN\\b", "GRN")
-        .replaceAll("\\bGRN\\b", "GRN")
-        .replaceAll("\\bGREENS\\b", "GRNS")
-        .replaceAll("\\bGROV\\b", "GRV")
-        .replaceAll("\\bGROVE\\b", "GRV")
-        .replaceAll("\\bGRV\\b", "GRV")
-        .replaceAll("\\bGROVES\\b", "GRVS")
-        .replaceAll("\\bHARB\\b", "HBR")
-        .replaceAll("\\bHARBOR\\b", "HBR")
-        .replaceAll("\\bHARBR\\b", "HBR")
-        .replaceAll("\\bHBR\\b", "HBR")
-        .replaceAll("\\bHRBOR\\b", "HBR")
-        .replaceAll("\\bHARBORS\\b", "HBRS")
-        .replaceAll("\\bHAVEN\\b", "HVN")
-        .replaceAll("\\bHVN\\b", "HVN")
-        .replaceAll("\\bHT\\b", "HTS")
-        .replaceAll("\\bHEIGHTS\\b", "HTS")
-        .replaceAll("\\bHTS\\b", "HTS")
-        .replaceAll("\\bHIGHWAY\\b", "HWY")
-        .replaceAll("\\bHIGHWY\\b", "HWY")
-        .replaceAll("\\bHIWAY\\b", "HWY")
-        .replaceAll("\\bHIWY\\b", "HWY")
-        .replaceAll("\\bHWAY\\b", "HWY")
-        .replaceAll("\\bHWY\\b", "HWY")
-        .replaceAll("\\bHILL\\b", "HL")
-        .replaceAll("\\bHL\\b", "HL")
-        .replaceAll("\\bHILLS\\b", "HLS")
-        .replaceAll("\\bHLS\\b", "HLS")
-        .replaceAll("\\bHLLW\\b", "HOLW")
-        .replaceAll("\\bHOLLOW\\b", "HOLW")
-        .replaceAll("\\bHOLLOWS\\b", "HOLW")
-        .replaceAll("\\bHOLW\\b", "HOLW")
-        .replaceAll("\\bHOLWS\\b", "HOLW")
-        .replaceAll("\\bINLT\\b", "INLT")
-        .replaceAll("\\bINLET\\b", "INLT")
-        .replaceAll("\\bIS\\b", "IS")
-        .replaceAll("\\bISLAND\\b", "IS")
-        .replaceAll("\\bISLND\\b", "IS")
-        .replaceAll("\\bISLANDS\\b", "ISS")
-        .replaceAll("\\bISLNDS\\b", "ISS")
-        .replaceAll("\\bISS\\b", "ISS")
-        .replaceAll("\\bISLE\\b", "ISLE")
-        .replaceAll("\\bISLES\\b", "ISLE")
-        .replaceAll("\\bJCT\\b", "JCT")
-        .replaceAll("\\bJCTION\\b", "JCT")
-        .replaceAll("\\bJCTN\\b", "JCT")
-        .replaceAll("\\bJUNCTION\\b", "JCT")
-        .replaceAll("\\bJUNCTN\\b", "JCT")
-        .replaceAll("\\bJUNCTON\\b", "JCT")
-        .replaceAll("\\bJCTNS\\b", "JCTS")
-        .replaceAll("\\bJCTS\\b", "JCTS")
-        .replaceAll("\\bJUNCTIONS\\b", "JCTS")
-        .replaceAll("\\bKEY\\b", "KY")
-        .replaceAll("\\bKY\\b", "KY")
-        .replaceAll("\\bKEYS\\b", "KYS")
-        .replaceAll("\\bKYS\\b", "KYS")
-        .replaceAll("\\bKNL\\b", "KNL")
-        .replaceAll("\\bKNOL\\b", "KNL")
-        .replaceAll("\\bKNOLL\\b", "KNL")
-        .replaceAll("\\bKNLS\\b", "KNLS")
-        .replaceAll("\\bKNOLLS\\b", "KNLS")
-        .replaceAll("\\bLK\\b", "LK")
-        .replaceAll("\\bLAKE\\b", "LK")
-        .replaceAll("\\bLKS\\b", "LKS")
-        .replaceAll("\\bLAKES\\b", "LKS")
-        .replaceAll("\\bLAND\\b", "LAND")
-        .replaceAll("\\bLANDING\\b", "LNDG")
-        .replaceAll("\\bLNDG\\b", "LNDG")
-        .replaceAll("\\bLNDNG\\b", "LNDG")
-        .replaceAll("\\bLANE\\b", "LN")
-        .replaceAll("\\bLN\\b", "LN")
-        .replaceAll("\\bLGT\\b", "LGT")
-        .replaceAll("\\bLIGHT\\b", "LGT")
-        .replaceAll("\\bLIGHTS\\b", "LGTS")
-        .replaceAll("\\bLF\\b", "LF")
-        .replaceAll("\\bLOAF\\b", "LF")
-        .replaceAll("\\bLCK\\b", "LCK")
-        .replaceAll("\\bLOCK\\b", "LCK")
-        .replaceAll("\\bLCKS\\b", "LCKS")
-        .replaceAll("\\bLOCKS\\b", "LCKS")
-        .replaceAll("\\bLDG\\b", "LDG")
-        .replaceAll("\\bLDGE\\b", "LDG")
-        .replaceAll("\\bLODG\\b", "LDG")
-        .replaceAll("\\bLODGE\\b", "LDG")
-        .replaceAll("\\bLOOP\\b", "LOOP")
-        .replaceAll("\\bLOOPS\\b", "LOOP")
-        .replaceAll("\\bMALL\\b", "MALL")
-        .replaceAll("\\bMNR\\b", "MNR")
-        .replaceAll("\\bMANOR\\b", "MNR")
-        .replaceAll("\\bMANORS\\b", "MNRS")
-        .replaceAll("\\bMNRS\\b", "MNRS")
-        .replaceAll("\\bMEADOW\\b", "MDW")
-        .replaceAll("\\bMDW\\b", "MDWS")
-        .replaceAll("\\bMDWS\\b", "MDWS")
-        .replaceAll("\\bMEADOWS\\b", "MDWS")
-        .replaceAll("\\bMEDOWS\\b", "MDWS")
-        .replaceAll("\\bMEWS\\b", "MEWS")
-        .replaceAll("\\bMILL\\b", "ML")
-        .replaceAll("\\bMILLS\\b", "MLS")
-        .replaceAll("\\bMISSN\\b", "MSN")
-        .replaceAll("\\bMSSN\\b", "MSN")
-        .replaceAll("\\bMOTORWAY\\b", "MTWY")
-        .replaceAll("\\bMNT\\b", "MT")
-        .replaceAll("\\bMT\\b", "MT")
-        .replaceAll("\\bMOUNT\\b", "MT")
-        .replaceAll("\\bMNTAIN\\b", "MTN")
-        .replaceAll("\\bMNTN\\b", "MTN")
-        .replaceAll("\\bMOUNTAIN\\b", "MTN")
-        .replaceAll("\\bMOUNTIN\\b", "MTN")
-        .replaceAll("\\bMTIN\\b", "MTN")
-        .replaceAll("\\bMTN\\b", "MTN")
-        .replaceAll("\\bMNTNS\\b", "MTNS")
-        .replaceAll("\\bMOUNTAINS\\b", "MTNS")
-        .replaceAll("\\bNCK\\b", "NCK")
-        .replaceAll("\\bNECK\\b", "NCK")
-        .replaceAll("\\bORCH\\b", "ORCH")
-        .replaceAll("\\bORCHARD\\b", "ORCH")
-        .replaceAll("\\bORCHRD\\b", "ORCH")
-        .replaceAll("\\bOVAL\\b", "OVAL")
-        .replaceAll("\\bOVL\\b", "OVAL")
-        .replaceAll("\\bOVERPASS\\b", "OPAS")
-        .replaceAll("\\bPARK\\b", "PARK")
-        .replaceAll("\\bPRK\\b", "PARK")
-        .replaceAll("\\bPARKS\\b", "PARK")
-        .replaceAll("\\bPARKWAY\\b", "PKWY")
-        .replaceAll("\\bPARKWY\\b", "PKWY")
-        .replaceAll("\\bPKWAY\\b", "PKWY")
-        .replaceAll("\\bPKWY\\b", "PKWY")
-        .replaceAll("\\bPKY\\b", "PKWY")
-        .replaceAll("\\bPARKWAYS\\b", "PKWY")
-        .replaceAll("\\bPKWYS\\b", "PKWY")
-        .replaceAll("\\bPASS\\b", "PASS")
-        .replaceAll("\\bPASSAGE\\b", "PSGE")
-        .replaceAll("\\bPATH\\b", "PATH")
-        .replaceAll("\\bPATHS\\b", "PATH")
-        .replaceAll("\\bPIKE\\b", "PIKE")
-        .replaceAll("\\bPIKES\\b", "PIKE")
-        .replaceAll("\\bPINE\\b", "PNE")
-        .replaceAll("\\bPINES\\b", "PNES")
-        .replaceAll("\\bPNES\\b", "PNES")
-        .replaceAll("\\bPL\\b", "PL")
-        .replaceAll("\\bPLACE\\b", "PL")
-        .replaceAll("\\bPLAIN\\b", "PLN")
-        .replaceAll("\\bPLN\\b", "PLN")
-        .replaceAll("\\bPLAINS\\b", "PLNS")
-        .replaceAll("\\bPLNS\\b", "PLNS")
-        .replaceAll("\\bPLAZA\\b", "PLZ")
-        .replaceAll("\\bPLZ\\b", "PLZ")
-        .replaceAll("\\bPLZA\\b", "PLZ")
-        .replaceAll("\\bPOINT\\b", "PT")
-        .replaceAll("\\bPT\\b", "PT")
-        .replaceAll("\\bPOINTS\\b", "PTS")
-        .replaceAll("\\bPTS\\b", "PTS")
-        .replaceAll("\\bPORT\\b", "PRT")
-        .replaceAll("\\bPRT\\b", "PRT")
-        .replaceAll("\\bPORTS\\b", "PRTS")
-        .replaceAll("\\bPRTS\\b", "PRTS")
-        .replaceAll("\\bPR\\b", "PR")
-        .replaceAll("\\bPRAIRIE\\b", "PR")
-        .replaceAll("\\bPRR\\b", "PR")
-        .replaceAll("\\bRAD\\b", "RADL")
-        .replaceAll("\\bRADIAL\\b", "RADL")
-        .replaceAll("\\bRADIEL\\b", "RADL")
-        .replaceAll("\\bRADL\\b", "RADL")
-        .replaceAll("\\bRAMP\\b", "RAMP")
-        .replaceAll("\\bRANCH\\b", "RNCH")
-        .replaceAll("\\bRANCHES\\b", "RNCH")
-        .replaceAll("\\bRNCH\\b", "RNCH")
-        .replaceAll("\\bRNCHS\\b", "RNCH")
-        .replaceAll("\\bRAPID\\b", "RPD")
-        .replaceAll("\\bRPD\\b", "RPD")
-        .replaceAll("\\bRAPIDS\\b", "RPDS")
-        .replaceAll("\\bRPDS\\b", "RPDS")
-        .replaceAll("\\bREST\\b", "RST")
-        .replaceAll("\\bRST\\b", "RST")
-        .replaceAll("\\bRDG\\b", "RDG")
-        .replaceAll("\\bRDGE\\b", "RDG")
-        .replaceAll("\\bRIDGE\\b", "RDG")
-        .replaceAll("\\bRDGS\\b", "RDGS")
-        .replaceAll("\\bRIDGES\\b", "RDGS")
-        .replaceAll("\\bRIV\\b", "RIV")
-        .replaceAll("\\bRIVER\\b", "RIV")
-        .replaceAll("\\bRVR\\b", "RIV")
-        .replaceAll("\\bRIVR\\b", "RIV")
-        .replaceAll("\\bRD\\b", "RD")
-        .replaceAll("\\bROAD\\b", "RD")
-        .replaceAll("\\bROADS\\b", "RDS")
-        .replaceAll("\\bRDS\\b", "RDS")
-        .replaceAll("\\bROUTE\\b", "RTE")
-        .replaceAll("\\bROW\\b", "ROW")
-        .replaceAll("\\bRUE\\b", "RUE")
-        .replaceAll("\\bRUN\\b", "RUN")
-        .replaceAll("\\bSHL\\b", "SHL")
-        .replaceAll("\\bSHOAL\\b", "SHL")
-        .replaceAll("\\bSHLS\\b", "SHLS")
-        .replaceAll("\\bSHOALS\\b", "SHLS")
-        .replaceAll("\\bSHOAR\\b", "SHR")
-        .replaceAll("\\bSHORE\\b", "SHR")
-        .replaceAll("\\bSHR\\b", "SHR")
-        .replaceAll("\\bSHOARS\\b", "SHRS")
-        .replaceAll("\\bSHORES\\b", "SHRS")
-        .replaceAll("\\bSHRS\\b", "SHRS")
-        .replaceAll("\\bSKYWAY\\b", "SKWY")
-        .replaceAll("\\bSPG\\b", "SPG")
-        .replaceAll("\\bSPNG\\b", "SPG")
-        .replaceAll("\\bSPRING\\b", "SPG")
-        .replaceAll("\\bSPRNG\\b", "SPG")
-        .replaceAll("\\bSPGS\\b", "SPGS")
-        .replaceAll("\\bSPNGS\\b", "SPGS")
-        .replaceAll("\\bSPRINGS\\b", "SPGS")
-        .replaceAll("\\bSPRNGS\\b", "SPGS")
-        .replaceAll("\\bSPUR\\b", "SPUR")
-        .replaceAll("\\bSPURS\\b", "SPUR")
-        .replaceAll("\\bSQ\\b", "SQ")
-        .replaceAll("\\bSQR\\b", "SQ")
-        .replaceAll("\\bSQRE\\b", "SQ")
-        .replaceAll("\\bSQU\\b", "SQ")
-        .replaceAll("\\bSQUARE\\b", "SQ")
-        .replaceAll("\\bSQRS\\b", "SQS")
-        .replaceAll("\\bSQUARES\\b", "SQS")
-        .replaceAll("\\bSTA\\b", "STA")
-        .replaceAll("\\bSTATION\\b", "STA")
-        .replaceAll("\\bSTATN\\b", "STA")
-        .replaceAll("\\bSTN\\b", "STA")
-        .replaceAll("\\bSTRA\\b", "STRA")
-        .replaceAll("\\bSTRAV\\b", "STRA")
-        .replaceAll("\\bSTRAVEN\\b", "STRA")
-        .replaceAll("\\bSTRAVENUE\\b", "STRA")
-        .replaceAll("\\bSTRAVN\\b", "STRA")
-        .replaceAll("\\bSTRVN\\b", "STRA")
-        .replaceAll("\\bSTRVNUE\\b", "STRA")
-        .replaceAll("\\bSTREAM\\b", "STRM")
-        .replaceAll("\\bSTREME\\b", "STRM")
-        .replaceAll("\\bSTRM\\b", "STRM")
-        .replaceAll("\\bSTREET\\b", "ST")
-        .replaceAll("\\bSTRT\\b", "ST")
-        .replaceAll("\\bST\\b", "ST")
-        .replaceAll("\\bSTR\\b", "ST")
-        .replaceAll("\\bSTREETS\\b", "STS")
-        .replaceAll("\\bSMT\\b", "SMT")
-        .replaceAll("\\bSUMIT\\b", "SMT")
-        .replaceAll("\\bSUMITT\\b", "SMT")
-        .replaceAll("\\bSUMMIT\\b", "SMT")
-        .replaceAll("\\bTER\\b", "TER")
-        .replaceAll("\\bTERR\\b", "TER")
-        .replaceAll("\\bTERRACE\\b", "TER")
-        .replaceAll("\\bTHROUGHWAY\\b", "TRWY")
-        .replaceAll("\\bTRACE\\b", "TRCE")
-        .replaceAll("\\bTRACES\\b", "TRCE")
-        .replaceAll("\\bTRCE\\b", "TRCE")
-        .replaceAll("\\bTRACK\\b", "TRAK")
-        .replaceAll("\\bTRACKS\\b", "TRAK")
-        .replaceAll("\\bTRAK\\b", "TRAK")
-        .replaceAll("\\bTRK\\b", "TRAK")
-        .replaceAll("\\bTRKS\\b", "TRAK")
-        .replaceAll("\\bTRAFFICWAY\\b", "TRFY")
-        .replaceAll("\\bTRAIL\\b", "TRL")
-        .replaceAll("\\bTRAILS\\b", "TRL")
-        .replaceAll("\\bTRL\\b", "TRL")
-        .replaceAll("\\bTRLS\\b", "TRL")
-        .replaceAll("\\bTRAILER\\b", "TRLR")
-        .replaceAll("\\bTRLR\\b", "TRLR")
-        .replaceAll("\\bTRLRS\\b", "TRLR")
-        .replaceAll("\\bTUNEL\\b", "TUNL")
-        .replaceAll("\\bTUNL\\b", "TUNL")
-        .replaceAll("\\bTUNLS\\b", "TUNL")
-        .replaceAll("\\bTUNNEL\\b", "TUNL")
-        .replaceAll("\\bTUNNELS\\b", "TUNL")
-        .replaceAll("\\bTUNNL\\b", "TUNL")
-        .replaceAll("\\bTRNPK\\b", "TPKE")
-        .replaceAll("\\bTURNPIKE\\b", "TPKE")
-        .replaceAll("\\bTURNPK\\b", "TPKE")
-        .replaceAll("\\bUNDERPASS\\b", "UPAS")
-        .replaceAll("\\bUN\\b", "UN")
-        .replaceAll("\\bUNION\\b", "UN")
-        .replaceAll("\\bUNIONS\\b", "UNS")
-        .replaceAll("\\bVALLEY\\b", "VLY")
-        .replaceAll("\\bVALLY\\b", "VLY")
-        .replaceAll("\\bVLLY\\b", "VLY")
-        .replaceAll("\\bVLY\\b", "VLY")
-        .replaceAll("\\bVALLEYS\\b", "VLYS")
-        .replaceAll("\\bVLYS\\b", "VLYS")
-        .replaceAll("\\bVDCT\\b", "VIA")
-        .replaceAll("\\bVIA\\b", "VIA")
-        .replaceAll("\\bVIADCT\\b", "VIA")
-        .replaceAll("\\bVIADUCT\\b", "VIA")
-        .replaceAll("\\bVIEW\\b", "VW")
-        .replaceAll("\\bVW\\b", "VW")
-        .replaceAll("\\bVIEWS\\b", "VWS")
-        .replaceAll("\\bVWS\\b", "VWS")
-        .replaceAll("\\bVILL\\b", "VLG")
-        .replaceAll("\\bVILLAG\\b", "VLG")
-        .replaceAll("\\bVILLAGE\\b", "VLG")
-        .replaceAll("\\bVILLG\\b", "VLG")
-        .replaceAll("\\bVILLIAGE\\b", "VLG")
-        .replaceAll("\\bVLG\\b", "VLG")
-        .replaceAll("\\bVILLAGES\\b", "VLGS")
-        .replaceAll("\\bVLGS\\b", "VLGS")
-        .replaceAll("\\bVILLE\\b", "VL")
-        .replaceAll("\\bVL\\b", "VL")
-        .replaceAll("\\bVIS\\b", "VIS")
-        .replaceAll("\\bVIST\\b", "VIS")
-        .replaceAll("\\bVISTA\\b", "VIS")
-        .replaceAll("\\bVST\\b", "VIS")
-        .replaceAll("\\bVSTA\\b", "VIS")
-        .replaceAll("\\bWALK\\b", "WALK")
-        .replaceAll("\\bWALKS\\b", "WALK")
-        .replaceAll("\\bWALL\\b", "WALL")
-        .replaceAll("\\bWY\\b", "WAY")
-        .replaceAll("\\bWAY\\b", "WAY")
-        .replaceAll("\\bWAYS\\b", "WAYS")
-        .replaceAll("\\bWELL\\b", "WL")
-        .replaceAll("\\bWELLS\\b", "WLS")
-        .replaceAll("\\bWLS\\b", "WLS")
-
+      for ((pattern, replacement) <- patternsC1) {
+        address = pattern.replaceAllIn(address, replacement)
+      }
       address
     }
   }
@@ -538,32 +625,9 @@ object AddressStandardizer {
     if (input == null) null
     else {
       var address = input.toUpperCase
-
-      address = address.replaceAll("\\bAPARTMENT\\b", "APT")
-      address = address.replaceAll("\\bBASEMENT\\b", "BSMT")
-      address = address.replaceAll("\\bBUILDING\\b", "BLDG")
-      address = address.replaceAll("\\bDEPARTMENT\\b", "DEPT")
-      address = address.replaceAll("\\bFLOOR\\b", "FL")
-      address = address.replaceAll("\\bFRONT\\b", "FRNT")
-      address = address.replaceAll("\\bHANGER\\b", "HNGR")
-      address = address.replaceAll("\\bKEY\\b", "KEY")
-      address = address.replaceAll("\\bLOBBY\\b", "LBBY")
-      address = address.replaceAll("\\bLOT\\b", "LOT")
-      address = address.replaceAll("\\bLOWER\\b", "LOWR")
-      address = address.replaceAll("\\bOFFICE\\b", "OFC")
-      address = address.replaceAll("\\bPENTHOUSE\\b", "PH")
-      address = address.replaceAll("\\bPIER\\b", "PIER")
-      address = address.replaceAll("\\bREAR\\b", "REAR")
-      address = address.replaceAll("\\bROOM\\b", "RM")
-      address = address.replaceAll("\\bSIDE\\b", "SIDE")
-      address = address.replaceAll("\\bSLIP\\b", "SLIP")
-      address = address.replaceAll("\\bSPACE\\b", "SPC")
-      address = address.replaceAll("\\bSTOP\\b", "STOP")
-      address = address.replaceAll("\\bSUITE\\b", "STE")
-      address = address.replaceAll("\\bTRAILER\\b", "TRLR")
-      address = address.replaceAll("\\bUNIT\\b", "UNIT")
-      address = address.replaceAll("\\bUPPER\\b", "UPPR")
-
+      for ((pattern, replacement) <- patternsC2) {
+        address = pattern.replaceAllIn(address, replacement)
+      }
       address
     }
   }
@@ -572,63 +636,11 @@ object AddressStandardizer {
     if (input == null) null
     else {
       var address = input.toUpperCase
-
-      address = address.replaceAll("\\bALABAMA\\b", "AL")
-      address = address.replaceAll("\\bALASKA\\b", "AK")
-      address = address.replaceAll("\\bARIZONA\\b", "AZ")
-      address = address.replaceAll("\\bARKANSAS\\b", "AR")
-      address = address.replaceAll("\\bCALIFORNIA\\b", "CA")
-      address = address.replaceAll("\\bCOLORADO\\b", "CO")
-      address = address.replaceAll("\\bCONNECTICUT\\b", "CT")
-      address = address.replaceAll("\\bDELAWARE\\b", "DE")
-      address = address.replaceAll("\\bFLORIDA\\b", "FL")
-      address = address.replaceAll("\\bGEORGIA\\b", "GA")
-      address = address.replaceAll("\\bHAWAII\\b", "HI")
-      address = address.replaceAll("\\bIDAHO\\b", "ID")
-      address = address.replaceAll("\\bILLINOIS\\b", "IL")
-      address = address.replaceAll("\\bINDIANA\\b", "IN")
-      address = address.replaceAll("\\bIOWA\\b", "IA")
-      address = address.replaceAll("\\bKANSAS\\b", "KS")
-      address = address.replaceAll("\\bKENTUCKY\\b", "KY")
-      address = address.replaceAll("\\bLOUISIANA\\b", "LA")
-      address = address.replaceAll("\\bMAINE\\b", "ME")
-      address = address.replaceAll("\\bMARYLAND\\b", "MD")
-      address = address.replaceAll("\\bMASSACHUSETTS\\b", "MA")
-      address = address.replaceAll("\\bMICHIGAN\\b", "MI")
-      address = address.replaceAll("\\bMINNESOTA\\b", "MN")
-      address = address.replaceAll("\\bMISSISSIPPI\\b", "MS")
-      address = address.replaceAll("\\bMISSOURI\\b", "MO")
-      address = address.replaceAll("\\bMONTANA\\b", "MT")
-      address = address.replaceAll("\\bNEBRASKA\\b", "NE")
-      address = address.replaceAll("\\bNEVADA\\b", "NV")
-      address = address.replaceAll("\\bNEW HAMPSHIRE\\b", "NH")
-      address = address.replaceAll("\\bNEW JERSEY\\b", "NJ")
-      address = address.replaceAll("\\bNEW MEXICO\\b", "NM")
-      address = address.replaceAll("\\bNEW YORK\\b", "NY")
-      address = address.replaceAll("\\bNORTH CAROLINA\\b", "NC")
-      address = address.replaceAll("\\bNORTH DAKOTA\\b", "ND")
-      address = address.replaceAll("\\bOHIO\\b", "OH")
-      address = address.replaceAll("\\bOKLAHOMA\\b", "OK")
-      address = address.replaceAll("\\bOREGON\\b", "OR")
-      address = address.replaceAll("\\bPENNSYLVANIA\\b", "PA")
-      address = address.replaceAll("\\bRHODE ISLAND\\b", "RI")
-      address = address.replaceAll("\\bSOUTH CAROLINA\\b", "SC")
-      address = address.replaceAll("\\bSOUTH DAKOTA\\b", "SD")
-      address = address.replaceAll("\\bTENNESSEE\\b", "TN")
-      address = address.replaceAll("\\bTEXAS\\b", "TX")
-      address = address.replaceAll("\\bUTAH\\b", "UT")
-      address = address.replaceAll("\\bVERMONT\\b", "VT")
-      address = address.replaceAll("\\bVIRGINIA\\b", "VA")
-      address = address.replaceAll("\\bWASHINGTON\\b", "WA")
-      address = address.replaceAll("\\bWEST VIRGINIA\\b", "WV")
-      address = address.replaceAll("\\bWISCONSIN\\b", "WI")
-      address = address.replaceAll("\\bWYOMING\\b", "WY")
-
+      for ((pattern, replacement) <- patternsState) {
+        address = pattern.replaceAllIn(address, replacement)
+      }
       address
     }
   }
 
-  val getOnly5DigitZip: UserDefinedFunction = udf((zip: String) => {
-    if (zip != null) zip.take(5) else null
-  })
 }
