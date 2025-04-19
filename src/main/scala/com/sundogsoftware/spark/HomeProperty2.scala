@@ -20,7 +20,7 @@ object HomeProperty2 {
 
   def main(args: Array[String]): Unit = {
 
-    val ref_filename = "Ref_202501_202502.csv" //  
+    val ref_filename = "Ref_202501_202502.csv" //
     val hs_filename = "HS_202501_202502.csv" //
     val base_filename = "Property_202503.csv" //
 
@@ -67,14 +67,25 @@ object HomeProperty2 {
     var dfHomeProperty = spark.read
       .option("header", "true")
       .option("inferSchema", "true")
+      .schema(
+        StructType(Array(
+          StructField("APN (PARCEL NUMBER UNFORMATTED)", StringType, nullable = true),
+          StructField("PROPERTY INDICATOR CODE", StringType, nullable = true),
+          StructField("SITUS CITY", StringType, nullable = true),
+          StructField("SITUS STATE", StringType, nullable = true),
+          StructField("SITUS ZIP CODE", StringType, nullable = true),
+          StructField("SITUS STREET ADDRESS", StringType, nullable = true),
+          StructField("SITUS CITY STATE ZIP SOURCE", StringType, nullable = true),
+          StructField("ZIP5", StringType, nullable = true),
+        ))
+      )
       .csv(s"$homePropertyPath/$base_filename")
 
     logger.info("Read Property_202412 successfully")
 
-    logger.info("Property_202412 COUNT: " + dfHomeProperty.count())
+    // logger.info("Property_202412 COUNT: " + dfHomeProperty.count())
 
     logger.info("Read all input CSV files successfully")
-    // Replace recorder with Home Full File
 
     // SITUS STREET ADDRESS
     // SITUS ZIP CODE -> 360513009 -> 36051 ( split zip into zip5 + zip4 )
@@ -168,8 +179,8 @@ object HomeProperty2 {
     logger.info("standardizeAddress column full_city_state_zip_hs")
     dfHs = dfHs.withColumn("full_city_state_zip_hs", standardizeAddress(F.col("full_city_state_zip_hs")))
 
-    logger.info("standardizeAddress column situs_city_state_zip")
-    dfHomeProperty = dfHomeProperty.withColumn("situs_city_state_zip", standardizeAddress(F.col("situs_city_state_zip")))
+    // logger.info("standardizeAddress column situs_city_state_zip")
+    // dfHomeProperty = dfHomeProperty.withColumn("situs_city_state_zip", standardizeAddress(F.col("situs_city_state_zip")))
 
     logger.info("standardizeAddress column full_street_name_ref")
     dfRef = dfRef.withColumn("full_street_name_ref", standardizeAddress(F.col("full_street_name_ref")))
@@ -225,21 +236,21 @@ object HomeProperty2 {
       )
       .select(df_ref_columns ++ df_base_columns: _*)
 
-    logger.info("Saving Home Sales - Recorder joined DataFrame to CSV")
+    logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfHs
       // .coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$homePropertyPath/df_join_hs_recorder")
+      .csv(s"$homePropertyPath/df_join_hs_home_property")
 
-    logger.info("Saving Refinance - Recorder joined DataFrame to CSV")
+    logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfRef
       //.coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$homePropertyPath/df_join_ref_rec")
+      .csv(s"$homePropertyPath/df_join_ref_home_property")
 
     logger.info("joined_dfHomeProperty_dfHs")
     logger.info(joined_dfHomeProperty_dfHs.count())
