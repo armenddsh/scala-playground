@@ -7,7 +7,7 @@ object HomeProperty3 {
 
   def main(args: Array[String]): Unit = {
 
-    val base_filename = "Property_202503.csv" // Property_202503_test.csv
+    val base_filename = "Property_202503_test.csv" // Property_202503_test.csv
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
@@ -49,10 +49,12 @@ object HomeProperty3 {
 
     logger.info("Read Property_202412 successfully")
 
+    dfHomeProperty = dfHomeProperty.withColumnRenamed("PROPERTY INDICATOR CODE","PROPERTY_INDICATOR_CODE")
+
     dfHomeProperty
-      .repartition(F.col("LAND USE CODE"))
+      .repartition(F.col("PROPERTY_INDICATOR_CODE"))
       .write
-      .partitionBy("LAND USE CODE")
+      .partitionBy("PROPERTY_INDICATOR_CODE")
       .mode("overwrite")
       .option("header", "true")
       .mode("overwrite")
