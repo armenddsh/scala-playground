@@ -22,7 +22,7 @@ object HomeProperty2 {
 
     val ref_filename = "Ref_202501_202502.csv" //
     val hs_filename = "HS_202501_202502.csv" //
-    val base_filename = "Property_202503.csv" //
+    val base_filename = "Property_202503.csv" // Property_202503_test.csv
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
@@ -48,40 +48,63 @@ object HomeProperty2 {
 
     logger.info("Reading REF_202501")
     var dfRef = spark.read
-      .option("header", "true")
-      .option("inferSchema", "true")
+      .option("header", value = true)
+      .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$ref_filename")
+
     logger.info("Read REF_202501 successfully")
+    dfRef = dfRef.select(
+      "street_number",
+      "direction_one",
+      "street",
+      "street_type",
+      "direction_two",
+      "suite",
+      "city",
+      "state",
+      "zip"
+    )
 
     logger.info("REF_202501 COUNT: " + dfRef.count())
 
     logger.info("Reading HS_202501")
     var dfHs = spark.read
-      .option("header", "true")
-      .option("inferSchema", "true")
+      .option("header", value = true)
+      .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$hs_filename")
+
     logger.info("Read HS_202501 successfully")
+    dfHs = dfHs.select(
+      "street_number",
+      "direction_one",
+      "street",
+      "street_type",
+      "direction_two",
+      "suite",
+      "city",
+      "state",
+      "zip"
+    )
 
     logger.info("HS_202501 COUNT: " + dfHs.count())
 
     var dfHomeProperty = spark.read
-      .option("header", "true")
-      .option("inferSchema", "true")
-      .schema(
-        StructType(Array(
-          StructField("APN (PARCEL NUMBER UNFORMATTED)", StringType, nullable = true),
-          StructField("PROPERTY INDICATOR CODE", StringType, nullable = true),
-          StructField("SITUS CITY", StringType, nullable = true),
-          StructField("SITUS STATE", StringType, nullable = true),
-          StructField("SITUS ZIP CODE", StringType, nullable = true),
-          StructField("SITUS STREET ADDRESS", StringType, nullable = true),
-          StructField("SITUS CITY STATE ZIP SOURCE", StringType, nullable = true),
-          StructField("ZIP5", StringType, nullable = true),
-        ))
-      )
+      .option("header", value = true)
+      .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$base_filename")
 
+    dfHomeProperty = dfHomeProperty.select(
+      "APN (PARCEL NUMBER UNFORMATTED)",
+      "PROPERTY INDICATOR CODE",
+      "SITUS CITY",
+      "SITUS STATE",
+      "SITUS ZIP CODE",
+      "SITUS STREET ADDRESS",
+      "ZIP5"
+    )
     logger.info("Read Property_202412 successfully")
+
+    // dfHomeProperty = dfHomeProperty.limit(100)
 
     // logger.info("Property_202412 COUNT: " + dfHomeProperty.count())
 
@@ -157,7 +180,7 @@ object HomeProperty2 {
     )
 
     dfHomeProperty = dfHomeProperty.withColumn(
-      "situs_city_state_zip",
+      "situs_city_state_zip_base",
       F.concat_ws("",
         F.coalesce(F.col("SITUS CITY"), F.lit("")),
         F.lit(" "),
@@ -167,8 +190,8 @@ object HomeProperty2 {
       )
     )
 
-    logger.info("standardizeAddress column PropertyAddressStreetName")
-    dfHomeProperty = dfHomeProperty.withColumn("PropertyAddressStreetName", standardizeAddress(F.col("SITUS STREET ADDRESS")))
+    logger.info("standardizeAddress column full_street_name_base")
+    dfHomeProperty = dfHomeProperty.withColumn("full_street_name_base", standardizeAddress(F.col("SITUS STREET ADDRESS")))
 
     logger.info("standardizeAddress column full_street_name_hs")
     dfHs = dfHs.withColumn("full_street_name_hs", standardizeAddress(F.col("full_street_name_hs")))
@@ -179,21 +202,48 @@ object HomeProperty2 {
     logger.info("standardizeAddress column full_city_state_zip_hs")
     dfHs = dfHs.withColumn("full_city_state_zip_hs", standardizeAddress(F.col("full_city_state_zip_hs")))
 
-    // logger.info("standardizeAddress column situs_city_state_zip")
-    // dfHomeProperty = dfHomeProperty.withColumn("situs_city_state_zip", standardizeAddress(F.col("situs_city_state_zip")))
+    logger.info("standardizeAddress column situs_city_state_zip_base")
+    dfHomeProperty = dfHomeProperty.withColumn("situs_city_state_zip_base", standardizeAddress(F.col("situs_city_state_zip_base")))
 
     logger.info("standardizeAddress column full_street_name_ref")
     dfRef = dfRef.withColumn("full_street_name_ref", standardizeAddress(F.col("full_street_name_ref")))
 
+    dfRef = dfRef.withColumn(
+      "full_address_ref",
+      F.concat_ws("",
+        F.coalesce(F.col("full_street_name_ref"), F.lit("")),
+        F.lit(", "),
+        F.coalesce(F.col("full_city_state_zip_ref"), F.lit("")),
+      )
+    )
+
+    dfHs = dfHs.withColumn(
+      "full_address_hs",
+      F.concat_ws("",
+        F.coalesce(F.col("full_street_name_hs"), F.lit("")),
+        F.lit(", "),
+        F.coalesce(F.col("full_city_state_zip_hs"), F.lit("")),
+      )
+    )
+
+    dfHomeProperty = dfHomeProperty.withColumn(
+      "full_address_base",
+      F.concat_ws("",
+        F.coalesce(F.col("full_street_name_base"), F.lit("")),
+        F.lit(", "),
+        F.coalesce(F.col("situs_city_state_zip_base"), F.lit("")),
+      )
+    )
+
     logger.info("dfHomeProperty filter non-empty")
     dfHomeProperty = dfHomeProperty
       .filter(
-        F.col("SITUS STREET ADDRESS").isNotNull && F.trim(F.col("SITUS STREET ADDRESS")) =!= "" &&
+        F.col("full_street_name_base").isNotNull && F.trim(F.col("full_street_name_base")) =!= "" &&
           F.col("ZIP5").isNotNull && F.trim(F.col("ZIP5")) =!= ""
       )
 
     logger.info("dfHomeProperty dropDuplicates")
-    dfHomeProperty = dfHomeProperty.dropDuplicates("SITUS STREET ADDRESS", "ZIP5")
+    dfHomeProperty = dfHomeProperty.dropDuplicates("full_street_name_base", "ZIP5")
 
     logger.info("dfHs filter non-empty")
     dfHs = dfHs
@@ -219,11 +269,15 @@ object HomeProperty2 {
     val df_base_columns = prefix_columns("base", "base", (dfHomeProperty.columns))
     val df_hs_columns = prefix_columns("hs", "hs", (dfHs.columns))
 
+    // dfRef.show(truncate = false, numRows = 100)
+    // dfHs.show(truncate = false, numRows = 100)
+    // dfHomeProperty.show(truncate = false, numRows = 100)
+
     logger.info("join dfHomeProperty - dfHs")
     val joined_dfHomeProperty_dfHs = dfHomeProperty.alias("base")
       .join(dfHs.alias("hs"),
         F.col("base.ZIP5") === F.col("hs.zip") &&
-          F.col("base.SITUS STREET ADDRESS") === F.col("hs.full_street_name_hs")
+          F.col("base.full_street_name_base") === F.col("hs.full_street_name_hs")
       )
       .select(df_hs_columns ++ df_base_columns: _*)
 
@@ -232,7 +286,7 @@ object HomeProperty2 {
     val joined_dfHomeProperty_dfRef = dfHomeProperty.alias("base")
       .join(dfRef.alias("ref"),
         F.col("base.ZIP5") === F.col("ref.zip") &&
-          F.col("base.SITUS STREET ADDRESS") === F.col("ref.full_street_name_ref")
+          F.col("base.full_street_name_base") === F.col("ref.full_street_name_ref")
       )
       .select(df_ref_columns ++ df_base_columns: _*)
 
@@ -246,7 +300,7 @@ object HomeProperty2 {
 
     logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfRef
-      //.coalesce(1)
+      // .coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
