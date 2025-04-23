@@ -191,69 +191,48 @@ object HomeProperty2 {
       )
     )
 
-    logger.info("standardizeAddress column full_street_name_base")
-    dfHomeProperty = standardizeAddress(dfHomeProperty,"full_street_name_base", "SITUS STREET ADDRESS")
-
-    logger.info("standardizeAddress column full_street_name_hs")
-    dfHs = standardizeAddress(dfHs, "full_street_name_hs", "full_street_name_hs")
-
-    logger.info("standardizeAddress column full_city_state_zip_ref")
-    dfRef = standardizeAddress(dfRef, "full_city_state_zip_ref", "full_city_state_zip_ref")
-
-    logger.info("standardizeAddress column full_city_state_zip_hs")
-    dfHs = standardizeAddress(dfHs, "full_city_state_zip_hs", "full_city_state_zip_hs")
-
-    logger.info("standardizeAddress column situs_city_state_zip_base")
-    dfHomeProperty = standardizeAddress(dfHomeProperty, "situs_city_state_zip_base", "situs_city_state_zip_base")
-
-    logger.info("standardizeAddress column full_street_name_ref")
-    dfRef = standardizeAddress(dfRef, "full_street_name_ref", "full_street_name_ref")
 
     dfRef.show(false)
     dfHomeProperty.show(false)
     dfHs.show(false)
 
-    dfRef = dfRef.withColumn(
-      "full_address_ref",
-      F.concat_ws("",
-        F.coalesce(F.col("full_street_name_ref"), F.lit("")),
-        F.lit(", "),
-        F.coalesce(F.col("full_city_state_zip_ref"), F.lit("")),
-      )
-    )
+    logger.info("standardizeAddress column full_street_name_base")
+    dfHomeProperty = standardizeAddress(dfHomeProperty, "SITUS STREET ADDRESS", "full_street_name_base_standardized")
 
-    dfHs = dfHs.withColumn(
-      "full_address_hs",
-      F.concat_ws("",
-        F.coalesce(F.col("full_street_name_hs"), F.lit("")),
-        F.lit(", "),
-        F.coalesce(F.col("full_city_state_zip_hs"), F.lit("")),
-      )
-    )
+    logger.info("standardizeAddress column full_street_name_hs")
+    dfHs = standardizeAddress(dfHs, "full_street_name_hs", "full_street_name_hs_standardized")
 
-    dfHomeProperty = dfHomeProperty.withColumn(
-      "full_address_base",
-      F.concat_ws("",
-        F.coalesce(F.col("full_street_name_base"), F.lit("")),
-        F.lit(", "),
-        F.coalesce(F.col("situs_city_state_zip_base"), F.lit("")),
-      )
-    )
+    // logger.info("standardizeAddress column full_city_state_zip_ref")
+    // dfRef = standardizeAddress(dfRef, "full_city_state_zip_ref", "full_city_state_zip_ref")
+
+    // logger.info("standardizeAddress column full_city_state_zip_hs")
+    // dfHs = standardizeAddress(dfHs, "full_city_state_zip_hs", "full_city_state_zip_hs")
+
+    // logger.info("standardizeAddress column situs_city_state_zip_base")
+    // dfHomeProperty = standardizeAddress(dfHomeProperty, "situs_city_state_zip_base", "situs_city_state_zip_base")
+
+    logger.info("standardizeAddress column full_street_name_ref")
+    dfRef = standardizeAddress(dfRef, "full_street_name_ref", "full_street_name_ref_standardized")
+
+    dfRef.show(false)
+    dfHomeProperty.show(false)
+    dfHs.show(false)
+
 
     logger.info("dfHomeProperty filter non-empty")
     dfHomeProperty = dfHomeProperty
       .filter(
-        F.col("full_street_name_base").isNotNull && F.trim(F.col("full_street_name_base")) =!= "" &&
+        F.col("full_street_name_base_standardized").isNotNull && F.trim(F.col("full_street_name_base_standardized")) =!= "" &&
           F.col("ZIP5").isNotNull && F.trim(F.col("ZIP5")) =!= ""
       )
 
     logger.info("dfHomeProperty dropDuplicates")
-    dfHomeProperty = dfHomeProperty.dropDuplicates("full_street_name_base", "ZIP5")
+    dfHomeProperty = dfHomeProperty.dropDuplicates("full_street_name_base_standardized", "ZIP5")
 
     logger.info("dfHs filter non-empty")
     dfHs = dfHs
       .filter(
-        F.col("full_street_name_hs").isNotNull && F.trim(F.col("full_street_name_hs")) =!= "" &&
+        F.col("full_street_name_hs_standardized").isNotNull && F.trim(F.col("full_street_name_hs_standardized")) =!= "" &&
           F.col("zip").isNotNull && F.trim(F.col("zip")) =!= ""
       )
 
@@ -263,12 +242,12 @@ object HomeProperty2 {
     logger.info("dfRef filter non-empty")
     dfRef = dfRef
       .filter(
-        F.col("full_street_name_ref").isNotNull && F.trim(F.col("full_street_name_ref")) =!= "" &&
+        F.col("full_street_name_ref_standardized").isNotNull && F.trim(F.col("full_street_name_ref_standardized")) =!= "" &&
           F.col("zip").isNotNull && F.trim(F.col("zip")) =!= ""
       )
 
     logger.info("dfRef dropDuplicates")
-    dfRef = dfRef.dropDuplicates("full_street_name_ref", "zip")
+    dfRef = dfRef.dropDuplicates("full_street_name_ref_standardized", "zip")
 
     val df_ref_columns = prefix_columns("ref", "ref", (dfRef.columns))
     val df_base_columns = prefix_columns("base", "base", (dfHomeProperty.columns))
@@ -282,7 +261,7 @@ object HomeProperty2 {
     val joined_dfHomeProperty_dfHs = dfHomeProperty.alias("base")
       .join(dfHs.alias("hs"),
         F.col("base.ZIP5") === F.col("hs.zip") &&
-          F.col("base.full_street_name_base") === F.col("hs.full_street_name_hs")
+          F.col("base.full_street_name_base_standardized") === F.col("hs.full_street_name_hs_standardized")
       )
       .select(df_hs_columns ++ df_base_columns: _*)
 
@@ -291,7 +270,7 @@ object HomeProperty2 {
     val joined_dfHomeProperty_dfRef = dfHomeProperty.alias("base")
       .join(dfRef.alias("ref"),
         F.col("base.ZIP5") === F.col("ref.zip") &&
-          F.col("base.full_street_name_base") === F.col("ref.full_street_name_ref")
+          F.col("base.full_street_name_base_standardized") === F.col("ref.full_street_name_ref_standardized")
       )
       .select(df_ref_columns ++ df_base_columns: _*)
 //
