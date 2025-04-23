@@ -602,19 +602,19 @@ object AddressStandardizer {
     val upperCaseDf = df.withColumn(outputColName, upper(col(colName)))
 
     // Clean the column
-    val cleanedDf = StringCleaner.cleanColumn(upperCaseDf, colName, outputColName)
+    val cleanedDf = StringCleaner.cleanColumn(upperCaseDf, outputColName, colName)
 
     // Apply standardizeAddressC1 transformation
     val c1Df = standardizeAddressC1(cleanedDf, colName, outputColName)
 
     // Apply standardizeAddressC2 transformation
-    val c2Df = standardizeAddressC2(c1Df, colName, outputColName)
+    // val c2Df = standardizeAddressC2(c1Df, colName, outputColName)
 
     // Apply standardizeState transformation
-    val finalDf = standardizeState(c2Df, colName, outputColName)
+    // val finalDf = standardizeState(c2Df, colName, outputColName)
 
     // Return the final DataFrame
-    finalDf
+    cleanedDf
   }
 
   private def standardizeAddressC1(df: DataFrame, outputColName: String, colName: String): DataFrame = {

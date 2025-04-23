@@ -5,7 +5,7 @@ import org.apache.spark.sql.functions._
 
 object StringCleaner {
 
-  def cleanColumn(df: DataFrame, columnName: String, outputCol: String = "cleaned_text"): DataFrame = {
+  def cleanColumn(df: DataFrame, outputCol: String, columnName: String): DataFrame = {
     df.withColumn(
       outputCol,
       trim(

@@ -276,7 +276,7 @@ object HomeProperty2 {
 
     // dfRef.show(truncate = false, numRows = 100)
     // dfHs.show(truncate = false, numRows = 100)
-    // dfHomeProperty.show(truncate = false, numRows = 100)
+    // dfHomeProperty.show(truncate = false, numRows = 1000)
 
     logger.info("join dfHomeProperty - dfHs")
     val joined_dfHomeProperty_dfHs = dfHomeProperty.alias("base")
