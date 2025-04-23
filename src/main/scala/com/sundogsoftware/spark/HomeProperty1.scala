@@ -78,9 +78,9 @@ object HomeProperty1 {
       )
     )
 
-    dfRecorder = dfRecorder.withColumn("PropertyAddressStreetName", standardizeAddress(F.col("PropertyAddressStreetName")))
-    dfHs = dfHs.withColumn("full_street_name_hs", standardizeAddress(F.col("full_street_name_hs")))
-    dfRef = dfRef.withColumn("full_street_name_ref", standardizeAddress(F.col("full_street_name_ref")))
+    dfRecorder = standardizeAddress(dfRecorder, "PropertyAddressStreetName", "PropertyAddressStreetName")
+    dfHs = standardizeAddress(dfHs, "full_street_name_hs", "full_street_name_hs")
+    dfRef = standardizeAddress(dfRef, "full_street_name_ref", "full_street_name_ref")
 
     dfRecorder = dfRecorder.dropDuplicates("PropertyAddressFull", "PropertyAddressZIP")
     dfHs = dfHs.dropDuplicates("full_street_name_hs", "zip")

@@ -192,22 +192,26 @@ object HomeProperty2 {
     )
 
     logger.info("standardizeAddress column full_street_name_base")
-    dfHomeProperty = dfHomeProperty.withColumn("full_street_name_base", standardizeAddress(F.col("SITUS STREET ADDRESS")))
+    dfHomeProperty = standardizeAddress(dfHomeProperty,"full_street_name_base", "SITUS STREET ADDRESS")
 
     logger.info("standardizeAddress column full_street_name_hs")
-    dfHs = dfHs.withColumn("full_street_name_hs", standardizeAddress(F.col("full_street_name_hs")))
+    dfHs = standardizeAddress(dfHs, "full_street_name_hs", "full_street_name_hs")
 
     logger.info("standardizeAddress column full_city_state_zip_ref")
-    dfRef = dfRef.withColumn("full_city_state_zip_ref", standardizeAddress(F.col("full_city_state_zip_ref")))
+    dfRef = standardizeAddress(dfRef, "full_city_state_zip_ref", "full_city_state_zip_ref")
 
     logger.info("standardizeAddress column full_city_state_zip_hs")
-    dfHs = dfHs.withColumn("full_city_state_zip_hs", standardizeAddress(F.col("full_city_state_zip_hs")))
+    dfHs = standardizeAddress(dfHs, "full_city_state_zip_hs", "full_city_state_zip_hs")
 
     logger.info("standardizeAddress column situs_city_state_zip_base")
-    dfHomeProperty = dfHomeProperty.withColumn("situs_city_state_zip_base", standardizeAddress(F.col("situs_city_state_zip_base")))
+    dfHomeProperty = standardizeAddress(dfHomeProperty, "situs_city_state_zip_base", "situs_city_state_zip_base")
 
     logger.info("standardizeAddress column full_street_name_ref")
-    dfRef = dfRef.withColumn("full_street_name_ref", standardizeAddress(F.col("full_street_name_ref")))
+    dfRef = standardizeAddress(dfRef, "full_street_name_ref", "full_street_name_ref")
+
+    dfRef.show(false)
+    dfHomeProperty.show(false)
+    dfHs.show(false)
 
     dfRef = dfRef.withColumn(
       "full_address_ref",
@@ -290,22 +294,20 @@ object HomeProperty2 {
           F.col("base.full_street_name_base") === F.col("ref.full_street_name_ref")
       )
       .select(df_ref_columns ++ df_base_columns: _*)
-
-    logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
-    joined_dfHomeProperty_dfHs
-      // .coalesce(1)
-      .write
-      .option("header", "true")
-      .mode("overwrite")
-      .csv(s"$homePropertyPath/df_join_hs_home_property")
-
-    logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
-    joined_dfHomeProperty_dfRef
-      // .coalesce(1)
-      .write
-      .option("header", "true")
-      .mode("overwrite")
-      .csv(s"$homePropertyPath/df_join_ref_home_property")
+//
+//    logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
+//    joined_dfHomeProperty_dfHs
+//      .write
+//      .option("header", "true")
+//      .mode("overwrite")
+//      .csv(s"$homePropertyPath/df_join_hs_home_property")
+//
+//    logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
+//    joined_dfHomeProperty_dfRef
+//      .write
+//      .option("header", "true")
+//      .mode("overwrite")
+//      .csv(s"$homePropertyPath/df_join_ref_home_property")
 
     logger.info("joined_dfHomeProperty_dfHs")
     logger.info(joined_dfHomeProperty_dfHs.count())

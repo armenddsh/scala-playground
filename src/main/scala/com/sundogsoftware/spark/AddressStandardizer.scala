@@ -1,8 +1,7 @@
 package com.sundogsoftware.spark
 
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.expressions.UserDefinedFunction
-import StringCleaner._
 
 import scala.util.matching.Regex
 
@@ -598,49 +597,57 @@ object AddressStandardizer {
     "\\bWYOMING\\b".r -> "WY",
   )
 
-  var standardizeAddress: UserDefinedFunction = udf((input: String) => {
-    if (input == null) null
-    else {
-        var address = cleanString(input)
-      address = standardizeAddressC1(address)
-      address = standardizeAddressC2(address)
-      address = standardizeState(address)
+  def standardizeAddress(df: DataFrame, outputColName: String, colName: String): DataFrame = {
+    // Apply the initial transformation (uppercasing the column)
+    val upperCaseDf = df.withColumn(outputColName, upper(col(colName)))
 
-      address
-    }
-  })
+    // Clean the column
+    val cleanedDf = StringCleaner.cleanColumn(upperCaseDf, colName, outputColName)
 
-  private val standardizeAddressC1 = (input: String) => {
-    if (input == null) null
-    else {
-      var address = input.toUpperCase
-      for ((pattern, replacement) <- patternsC1) {
-        address = pattern.replaceAllIn(address, replacement)
-      }
-      address
-    }
+    // Apply standardizeAddressC1 transformation
+    val c1Df = standardizeAddressC1(cleanedDf, colName, outputColName)
+
+    // Apply standardizeAddressC2 transformation
+    val c2Df = standardizeAddressC2(c1Df, colName, outputColName)
+
+    // Apply standardizeState transformation
+    val finalDf = standardizeState(c2Df, colName, outputColName)
+
+    // Return the final DataFrame
+    finalDf
   }
 
-  private val standardizeAddressC2: String => String = (input: String) => {
-    if (input == null) null
-    else {
-      var address = input.toUpperCase
-      for ((pattern, replacement) <- patternsC2) {
-        address = pattern.replaceAllIn(address, replacement)
-      }
-      address
+  private def standardizeAddressC1(df: DataFrame, outputColName: String, colName: String): DataFrame = {
+    val upperCol = upper(col(colName))
+
+    val updatedCol = patternsC1.foldLeft(upperCol) {
+      case (currentCol, (pattern, replacement)) =>
+        regexp_replace(currentCol, pattern.regex, replacement)
     }
+
+    df.withColumn(outputColName, updatedCol)
   }
 
-  private val standardizeState: String => String = (input: String) => {
-    if (input == null) null
-    else {
-      var address = input.toUpperCase
-      for ((pattern, replacement) <- patternsState) {
-        address = pattern.replaceAllIn(address, replacement)
-      }
-      address
+  private def standardizeAddressC2(df: DataFrame, outputColName: String, colName: String): DataFrame = {
+    val upperCol = upper(col(colName))
+
+    val updatedCol = patternsC2.foldLeft(upperCol) {
+      case (currentCol, (pattern, replacement)) =>
+        regexp_replace(currentCol, pattern.regex, replacement)
     }
+
+    df.withColumn(outputColName, updatedCol)
+  }
+
+  private def standardizeState(df: DataFrame, outputColName: String, colName: String): DataFrame = {
+    val upperCol = upper(col(colName))
+
+    val updatedCol = patternsState.foldLeft(upperCol) {
+      case (currentCol, (pattern, replacement)) =>
+        regexp_replace(currentCol, pattern.regex, replacement)
+    }
+
+    df.withColumn(outputColName, updatedCol)
   }
 
 }
