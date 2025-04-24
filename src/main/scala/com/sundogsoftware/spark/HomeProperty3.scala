@@ -7,7 +7,7 @@ object HomeProperty3 {
 
   def main(args: Array[String]): Unit = {
 
-    val base_filename = "Property_202503.csv"
+    val base_filename = "Property_202503_test.csv"
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
@@ -46,8 +46,18 @@ object HomeProperty3 {
     // 5. Get distinct values of PROPERTY_INDICATOR_CODE and process without collect()
     println("Processing each PROPERTY_INDICATOR_CODE value collect()...")
 
-    val distinctValues: Seq[String] = cleanedDf
-      .select("PROPERTY_INDICATOR_CODE")
+    val dfDataDictionary = spark.read
+      .option("header", value = true)
+      .option("inferSchema", value = true)
+      .csv(s"$homePropertyPath/Property_DataDictionary.csv")
+
+    val joined = cleanedDf
+      .join(dfDataDictionary,
+        F.col("Property Indicator") === F.col("PROPERTY_INDICATOR_CODE")
+      )
+
+    val distinctValues: Seq[String] = dfDataDictionary
+      .select("Property Indicator")
       .distinct()
       .collect()
       .map(_.get(0))                  // extract the value
@@ -64,7 +74,7 @@ object HomeProperty3 {
         val outputPath = s"$homePropertyPath/property_indicator_codes/property_indicator_code_${propertyIndicatorCode}"
         println(s"Writing data for PROPERTY_INDICATOR_CODE = $propertyIndicatorCode to: $outputPath")
 
-        val filteredDf = cleanedDf.filter(F.col("PROPERTY_INDICATOR_CODE") === propertyIndicatorCode)
+        val filteredDf = joined.filter(F.col("PROPERTY_INDICATOR_CODE") === propertyIndicatorCode)
 
         filteredDf.write
           .mode("overwrite")

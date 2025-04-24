@@ -54,17 +54,18 @@ object HomeProperty2 {
       .csv(s"$homePropertyPath/$ref_filename")
 
     logger.info("Read REF_202501 successfully")
-//    dfRef = dfRef.select(
-//      "street_number",
-//      "direction_one",
-//      "street",
-//      "street_type",
-//      "direction_two",
-//      "suite",
-//      "city",
-//      "state",
-//      "zip"
-//    )
+
+    dfRef = dfRef.select(
+      "street_number",
+      "direction_one",
+      "street",
+      "street_type",
+      "direction_two",
+      "suite",
+      "city",
+      "state",
+      "zip"
+    )
 
     logger.info("REF_202501 COUNT: " + dfRef.count())
 
@@ -75,17 +76,17 @@ object HomeProperty2 {
       .csv(s"$homePropertyPath/$hs_filename")
 
     logger.info("Read HS_202501 successfully")
-//    dfHs = dfHs.select(
-//      "street_number",
-//      "direction_one",
-//      "street",
-//      "street_type",
-//      "direction_two",
-//      "suite",
-//      "city",
-//      "state",
-//      "zip"
-//    )
+    dfHs = dfHs.select(
+      "street_number",
+      "direction_one",
+      "street",
+      "street_type",
+      "direction_two",
+      "suite",
+      "city",
+      "state",
+      "zip"
+    )
 
     logger.info("HS_202501 COUNT: " + dfHs.count())
 
@@ -94,15 +95,16 @@ object HomeProperty2 {
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$base_filename")
 
-//    dfHomeProperty = dfHomeProperty.select(
-//      "APN (PARCEL NUMBER UNFORMATTED)",
-//      "PROPERTY INDICATOR CODE",
-//      "SITUS CITY",
-//      "SITUS STATE",
-//      "SITUS ZIP CODE",
-//      "SITUS STREET ADDRESS",
-//      "ZIP5"
-//    )
+    dfHomeProperty = dfHomeProperty.select(
+      "APN (PARCEL NUMBER UNFORMATTED)",
+      "PROPERTY INDICATOR CODE",
+      "SITUS CITY",
+      "SITUS STATE",
+      "SITUS ZIP CODE",
+      "SITUS STREET ADDRESS",
+      "ZIP5"
+    )
+
     logger.info("Read Property_202412 successfully")
 
     // dfHomeProperty = dfHomeProperty.limit(100)
@@ -278,11 +280,11 @@ object HomeProperty2 {
       .mode("overwrite")
       .csv(s"$homePropertyPath/df_join_ref_home_property")
 
-    logger.info("joined_dfHomeProperty_dfHs")
-    logger.info(joined_dfHomeProperty_dfHs.count())
+    // logger.info("joined_dfHomeProperty_dfHs")
+    // logger.info(joined_dfHomeProperty_dfHs.count())
 
-    logger.info("joined_dfHomeProperty_dfRef")
-    logger.info(joined_dfHomeProperty_dfRef.count())
+    // logger.info("joined_dfHomeProperty_dfRef")
+    // logger.info(joined_dfHomeProperty_dfRef.count())
 
     // result_dfHomeProperty_dfRef.show(truncate = false, numRows = 100)
     // resultDF_dfHomeProperty_dfHs.show(truncate = false, numRows = 100)

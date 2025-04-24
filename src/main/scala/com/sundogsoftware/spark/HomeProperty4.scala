@@ -33,7 +33,7 @@ object HomeProperty4 {
 
     logger.info("Reading input CSV files")
 
-    var dfHomeProperty = spark.read
+    val dfHomeProperty = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$base_filename")
