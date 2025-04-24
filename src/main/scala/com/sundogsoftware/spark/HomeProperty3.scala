@@ -7,7 +7,7 @@ object HomeProperty3 {
 
   def main(args: Array[String]): Unit = {
 
-    val base_filename = "Property_202503_test.csv" // Property_202503_test.csv
+    val base_filename = "Property_202503.csv"
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
@@ -62,11 +62,10 @@ object HomeProperty3 {
         val propertyIndicatorCode = row
 
         val outputPath = s"$homePropertyPath/property_indicator_codes/property_indicator_code_${propertyIndicatorCode}"
-        println(s"Writing data for PROPERTY_INDICATOR_CODE = $propertyIndicatorCode")
+        println(s"Writing data for PROPERTY_INDICATOR_CODE = $propertyIndicatorCode to: $outputPath")
 
         val filteredDf = cleanedDf.filter(F.col("PROPERTY_INDICATOR_CODE") === propertyIndicatorCode)
 
-        println(s"Writing data for PROPERTY_INDICATOR_CODE = $propertyIndicatorCode to: $outputPath")
         filteredDf.write
           .mode("overwrite")
           .option("header", "true")
