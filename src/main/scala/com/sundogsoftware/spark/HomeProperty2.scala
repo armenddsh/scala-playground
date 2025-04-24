@@ -54,17 +54,17 @@ object HomeProperty2 {
       .csv(s"$homePropertyPath/$ref_filename")
 
     logger.info("Read REF_202501 successfully")
-    dfRef = dfRef.select(
-      "street_number",
-      "direction_one",
-      "street",
-      "street_type",
-      "direction_two",
-      "suite",
-      "city",
-      "state",
-      "zip"
-    )
+//    dfRef = dfRef.select(
+//      "street_number",
+//      "direction_one",
+//      "street",
+//      "street_type",
+//      "direction_two",
+//      "suite",
+//      "city",
+//      "state",
+//      "zip"
+//    )
 
     logger.info("REF_202501 COUNT: " + dfRef.count())
 
@@ -75,17 +75,17 @@ object HomeProperty2 {
       .csv(s"$homePropertyPath/$hs_filename")
 
     logger.info("Read HS_202501 successfully")
-    dfHs = dfHs.select(
-      "street_number",
-      "direction_one",
-      "street",
-      "street_type",
-      "direction_two",
-      "suite",
-      "city",
-      "state",
-      "zip"
-    )
+//    dfHs = dfHs.select(
+//      "street_number",
+//      "direction_one",
+//      "street",
+//      "street_type",
+//      "direction_two",
+//      "suite",
+//      "city",
+//      "state",
+//      "zip"
+//    )
 
     logger.info("HS_202501 COUNT: " + dfHs.count())
 
@@ -94,15 +94,15 @@ object HomeProperty2 {
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$base_filename")
 
-    dfHomeProperty = dfHomeProperty.select(
-      "APN (PARCEL NUMBER UNFORMATTED)",
-      "PROPERTY INDICATOR CODE",
-      "SITUS CITY",
-      "SITUS STATE",
-      "SITUS ZIP CODE",
-      "SITUS STREET ADDRESS",
-      "ZIP5"
-    )
+//    dfHomeProperty = dfHomeProperty.select(
+//      "APN (PARCEL NUMBER UNFORMATTED)",
+//      "PROPERTY INDICATOR CODE",
+//      "SITUS CITY",
+//      "SITUS STATE",
+//      "SITUS ZIP CODE",
+//      "SITUS STREET ADDRESS",
+//      "ZIP5"
+//    )
     logger.info("Read Property_202412 successfully")
 
     // dfHomeProperty = dfHomeProperty.limit(100)
@@ -191,11 +191,6 @@ object HomeProperty2 {
       )
     )
 
-
-    dfRef.show(false)
-    dfHomeProperty.show(false)
-    dfHs.show(false)
-
     logger.info("standardizeAddress column full_street_name_base")
     dfHomeProperty = standardizeAddress(dfHomeProperty, "SITUS STREET ADDRESS", "full_street_name_base_standardized")
 
@@ -213,11 +208,6 @@ object HomeProperty2 {
 
     logger.info("standardizeAddress column full_street_name_ref")
     dfRef = standardizeAddress(dfRef, "full_street_name_ref", "full_street_name_ref_standardized")
-
-    dfRef.show(false)
-    dfHomeProperty.show(false)
-    dfHs.show(false)
-
 
     logger.info("dfHomeProperty filter non-empty")
     dfHomeProperty = dfHomeProperty
@@ -273,20 +263,20 @@ object HomeProperty2 {
           F.col("base.full_street_name_base_standardized") === F.col("ref.full_street_name_ref_standardized")
       )
       .select(df_ref_columns ++ df_base_columns: _*)
-//
-//    logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
-//    joined_dfHomeProperty_dfHs
-//      .write
-//      .option("header", "true")
-//      .mode("overwrite")
-//      .csv(s"$homePropertyPath/df_join_hs_home_property")
-//
-//    logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
-//    joined_dfHomeProperty_dfRef
-//      .write
-//      .option("header", "true")
-//      .mode("overwrite")
-//      .csv(s"$homePropertyPath/df_join_ref_home_property")
+
+    logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
+    joined_dfHomeProperty_dfHs
+      .write
+      .option("header", "true")
+      .mode("overwrite")
+      .csv(s"$homePropertyPath/df_join_hs_home_property")
+
+    logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
+    joined_dfHomeProperty_dfRef
+      .write
+      .option("header", "true")
+      .mode("overwrite")
+      .csv(s"$homePropertyPath/df_join_ref_home_property")
 
     logger.info("joined_dfHomeProperty_dfHs")
     logger.info(joined_dfHomeProperty_dfHs.count())
