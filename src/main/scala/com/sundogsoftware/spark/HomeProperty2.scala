@@ -1,18 +1,11 @@
 package com.sundogsoftware.spark
 
-import com.sundogsoftware.spark.AddressStandardizer._
 import org.apache.log4j._
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{SparkSession, functions => F}
+import org.apache.spark.storage.StorageLevel
 
 object HomeProperty2 {
-
-  private def createCustomSchema(columns: List[String]): StructType = {
-    val fields = columns.map { colName =>
-      StructField(colName, StringType, nullable = true) // no backticks!
-    }
-    StructType(fields)
-  }
 
   private def prefix_columns(prefix: String, long_prefix: String, columns: Array[String]): Array[org.apache.spark.sql.Column] = {
     columns.map(col => F.col(s"$prefix.$col").alias(s"${col}_$long_prefix"))
@@ -22,7 +15,7 @@ object HomeProperty2 {
 
     val ref_filename = "Ref_202501_202502.csv" //
     val hs_filename = "HS_202501_202502.csv" //
-    val base_filename = "Property_202503.csv" // Property_202503_test.csv
+    val base_filename = "Property_202503_test.csv" // Property_202503_test.csv
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
@@ -52,8 +45,7 @@ object HomeProperty2 {
       .option("header", value = true)
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$ref_filename")
-
-    logger.info("Read REF_202501 successfully")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
     dfRef = dfRef.select(
       "street_number",
@@ -67,6 +59,25 @@ object HomeProperty2 {
       "zip"
     )
 
+    val c1Df = spark.read
+      .option("header", value = true)
+      .option("inferSchema", value = true)
+      .csv(s"$homePropertyPath/C1.csv")
+      .persist(StorageLevel.MEMORY_AND_DISK)
+
+//    val c2Df = spark.read
+//      .option("header", value = true)
+//      .option("inferSchema", value = true)
+//      .csv(s"$homePropertyPath/C2.csv")
+//      .persist(StorageLevel.MEMORY_AND_DISK)
+//    logger.info("Read REF_202501 successfully")
+//
+//    val statesDf = spark.read
+//      .option("header", value = true)
+//      .option("inferSchema", value = true)
+//      .csv(s"$homePropertyPath/States.csv")
+//      .persist(StorageLevel.MEMORY_AND_DISK)
+
     logger.info("REF_202501 COUNT: " + dfRef.count())
 
     logger.info("Reading HS_202501")
@@ -74,8 +85,8 @@ object HomeProperty2 {
       .option("header", value = true)
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$hs_filename")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
-    logger.info("Read HS_202501 successfully")
     dfHs = dfHs.select(
       "street_number",
       "direction_one",
@@ -88,186 +99,231 @@ object HomeProperty2 {
       "zip"
     )
 
-    logger.info("HS_202501 COUNT: " + dfHs.count())
+    logger.info("Read HS_202501 successfully")
 
     var dfHomeProperty = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$base_filename")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
     dfHomeProperty = dfHomeProperty.select(
       "APN (PARCEL NUMBER UNFORMATTED)",
+      "LAND USE CODE",
       "PROPERTY INDICATOR CODE",
+      "SITUS HOUSE NUMBER",
+      "SITUS HOUSE NUMBER SUFFIX",
+      "SITUS HOUSE NUMBER 2",
+      "SITUS DIRECTION",
+      "SITUS STREET NAME",
+      "SITUS MODE",
+      "SITUS QUADRANT",
+      "SITUS UNIT NUMBER",
+      "SITUS STREET ADDRESS",
       "SITUS CITY",
       "SITUS STATE",
       "SITUS ZIP CODE",
-      "SITUS STREET ADDRESS",
-      "ZIP5"
+      "ZIP5",
+      "SITUS COUNTY"
     )
 
-    logger.info("Read Property_202412 successfully")
-
-    // dfHomeProperty = dfHomeProperty.limit(100)
-
-    // logger.info("Property_202412 COUNT: " + dfHomeProperty.count())
-
     logger.info("Read all input CSV files successfully")
-
-    // SITUS STREET ADDRESS
-    // SITUS ZIP CODE -> 360513009 -> 36051 ( split zip into zip5 + zip4 )
 
     logger.info("Filling null values in DataFrames")
 
     dfHomeProperty = dfHomeProperty.na.fill("")
+      .persist(StorageLevel.MEMORY_AND_DISK)
     dfRef = dfRef.na.fill("")
+      .persist(StorageLevel.MEMORY_AND_DISK)
     dfHs = dfHs.na.fill("")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
-    logger.info("Filling null values in DataFrames Done")
-
-    logger.info("Creating column full_street_name_hs")
-    dfHs = dfHs.withColumn(
-      "full_street_name_hs",
-      F.concat_ws("",
-        F.coalesce(F.col("street_number"), F.lit("")),
-        F.lit(" "),
-        F.coalesce(F.col("direction_one"), F.lit("")),
-        F.lit(" "),
-        F.coalesce(F.col("street"), F.lit("")),
-        F.lit(" "),
-        F.coalesce(F.col("street_type"), F.lit("")),
-        F.lit(" "),
-        F.coalesce(F.col("direction_two"), F.lit("")),
-        F.lit(" "),
-        F.coalesce(F.col("suite"), F.lit(""))
-      )
+    var join_street_type_hs_c1 = dfHs.join(
+      c1Df,
+      upper(dfHs("street_type")) === upper(c1Df("street_type_c1")),
+      "left"
     )
 
-    dfHs = dfHs.withColumn(
-      "full_city_state_zip_hs",
-      F.concat_ws("",
-        F.coalesce(F.col("city"), F.lit("")),
+    var join_street_type_ref_c1 = dfRef.join(
+      c1Df,
+      upper(dfRef("street_type")) === upper(c1Df("street_type_c1")),
+      "left"
+    )
+
+    var join_street_type_base_c1 = dfHomeProperty.join(
+      c1Df,
+      upper(dfHomeProperty("SITUS MODE")) === upper(c1Df("street_type_c1")),
+      "left"
+    )
+
+    logger.info("Creating column full_street_name_hs")
+
+    join_street_type_hs_c1 = join_street_type_hs_c1.withColumn(
+      "full_street_name_hs",
+      upper(F.concat_ws("",
+        F.coalesce(F.col("street_number"), F.lit("")),
         F.lit(" "),
-        F.coalesce(F.col("state"), F.lit("")),
+ //       F.coalesce(F.col("direction_one"), F.lit("")),
+ //       F.lit(" "),
+        F.coalesce(F.col("street"), F.lit("")),
         F.lit(" "),
-        F.coalesce(F.col("zip"), F.lit("")),
-      )
+        F.coalesce(F.col("STD_street_type_c1"), F.lit("")),
+        F.lit(" "),
+ //       F.coalesce(F.col("direction_two"), F.lit("")),
+ //       F.lit(" "),
+ //       F.coalesce(F.col("suite"), F.lit(""))
+      ))
     )
 
     logger.info("Creating column full_street_name_ref")
-    dfRef = dfRef.withColumn(
+
+    join_street_type_ref_c1 = join_street_type_ref_c1.withColumn(
       "full_street_name_ref",
-      F.concat_ws("",
+      upper(F.concat_ws("",
         F.coalesce(F.col("street_number"), F.lit("")),
         F.lit(" "),
-        F.coalesce(F.col("direction_one"), F.lit("")),
-        F.lit(" "),
+  //       F.coalesce(F.col("direction_one"), F.lit("")),
+  //       F.lit(" "),
         F.coalesce(F.col("street"), F.lit("")),
         F.lit(" "),
-        F.coalesce(F.col("street_type"), F.lit("")),
+        F.coalesce(F.col("STD_street_type_c1"), F.lit("")),
         F.lit(" "),
-        F.coalesce(F.col("direction_two"), F.lit("")),
-        F.lit(" "),
-        F.coalesce(F.col("suite"), F.lit(""))
-      )
+  //      F.coalesce(F.col("direction_two"), F.lit("")),
+  //      F.lit(" "),
+  //       F.coalesce(F.col("suite"), F.lit(""))
+      ))
     )
 
-    dfRef = dfRef.withColumn(
-      "full_city_state_zip_ref",
-      F.concat_ws("",
-        F.coalesce(F.col("city"), F.lit("")),
+    logger.info("Creating column full_street_name_hs")
+
+    join_street_type_ref_c1 = join_street_type_ref_c1.withColumn(
+      "full_street_name_hs",
+      upper(F.concat_ws("",
+        F.coalesce(F.col("street_number"), F.lit("")),
         F.lit(" "),
-        F.coalesce(F.col("state"), F.lit("")),
+      //  F.coalesce(F.col("direction_one"), F.lit("")),
+      //  F.lit(" "),
+        F.coalesce(F.col("street"), F.lit("")),
         F.lit(" "),
-        F.coalesce(F.col("zip"), F.lit("")),
-      )
+        F.coalesce(F.col("STD_street_type_c1"), F.lit("")),
+        F.lit(" "),
+ //        F.coalesce(F.col("direction_two"), F.lit("")),
+ //       F.lit(" "),
+ //        F.coalesce(F.col("suite"), F.lit(""))
+      ))
     )
 
-    dfHomeProperty = dfHomeProperty.withColumn(
-      "situs_city_state_zip_base",
-      F.concat_ws("",
-        F.coalesce(F.col("SITUS CITY"), F.lit("")),
+//    join_street_type_base_c1 = join_street_type_base_c1.withColumn(
+//      "full_street_name_base",
+//      upper(F.concat_ws("",
+//        F.coalesce(F.col("SITUS HOUSE NUMBER"), F.lit("")),
+//        F.lit(" "),
+//        F.coalesce(F.col("SITUS DIRECTION"), F.lit("")),
+//        F.lit(" "),
+//        F.coalesce(F.col("SITUS STREET NAME"), F.lit("")),
+//        F.lit(" "),
+//        F.coalesce(F.col("STD_street_type_c1"), F.lit("")),
+//        F.lit(" "),
+//        F.coalesce(F.col("SITUS QUADRANT"), F.lit("")),
+//        F.lit(" "),
+//        F.coalesce(F.col("SITUS UNIT NUMBER"), F.lit(""))
+//      ))
+//    )
+
+    join_street_type_base_c1 = join_street_type_base_c1.withColumn(
+      "full_street_name_base",
+      upper(F.concat_ws("",
+        F.coalesce(F.col("SITUS HOUSE NUMBER"), F.lit("")),
         F.lit(" "),
-        F.coalesce(F.col("SITUS STATE"), F.lit("")),
+//        F.coalesce(F.col("SITUS HOUSE NUMBER SUFFIX"), F.lit("")),
+//        F.lit(" "),
+//        F.coalesce(F.col("SITUS HOUSE NUMBER 2"), F.lit("")),
+//        F.lit(" "),
+//        F.coalesce(F.col("SITUS DIRECTION"), F.lit("")),
+//        F.lit(" "),
+        F.coalesce(F.col("SITUS STREET NAME"), F.lit("")),
         F.lit(" "),
-        F.coalesce(F.col("SITUS ZIP CODE"), F.lit("")),
-      )
+        F.coalesce(F.col("STD_street_type_c1"), F.lit("")),
+        F.lit(" "),
+//        F.coalesce(F.col("SITUS QUADRANT"), F.lit("")),
+//        F.lit(" "),
+//        F.coalesce(F.col("SITUS UNIT NUMBER"), F.lit(""))
+      ))
     )
 
-    logger.info("standardizeAddress column full_street_name_base")
-    dfHomeProperty = standardizeAddress(dfHomeProperty, "SITUS STREET ADDRESS", "full_street_name_base_standardized")
+    join_street_type_base_c1 = StringCleaner
+      .cleanColumn(join_street_type_base_c1, "full_street_name_base", "full_street_name_base")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
-    logger.info("standardizeAddress column full_street_name_hs")
-    dfHs = standardizeAddress(dfHs, "full_street_name_hs", "full_street_name_hs_standardized")
+    join_street_type_ref_c1 = StringCleaner
+      .cleanColumn(join_street_type_ref_c1, "full_street_name_ref", "full_street_name_ref")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
-    // logger.info("standardizeAddress column full_city_state_zip_ref")
-    // dfRef = standardizeAddress(dfRef, "full_city_state_zip_ref", "full_city_state_zip_ref")
+    join_street_type_hs_c1 = StringCleaner
+      .cleanColumn(join_street_type_hs_c1, "full_street_name_hs", "full_street_name_hs")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
-    // logger.info("standardizeAddress column full_city_state_zip_hs")
-    // dfHs = standardizeAddress(dfHs, "full_city_state_zip_hs", "full_city_state_zip_hs")
-
-    // logger.info("standardizeAddress column situs_city_state_zip_base")
-    // dfHomeProperty = standardizeAddress(dfHomeProperty, "situs_city_state_zip_base", "situs_city_state_zip_base")
-
-    logger.info("standardizeAddress column full_street_name_ref")
-    dfRef = standardizeAddress(dfRef, "full_street_name_ref", "full_street_name_ref_standardized")
-
-    logger.info("dfHomeProperty filter non-empty")
-    dfHomeProperty = dfHomeProperty
+    join_street_type_base_c1 = join_street_type_base_c1
       .filter(
-        F.col("full_street_name_base_standardized").isNotNull && F.trim(F.col("full_street_name_base_standardized")) =!= "" &&
+        F.col("full_street_name_base").isNotNull && F.trim(F.col("full_street_name_base")) =!= "" &&
           F.col("ZIP5").isNotNull && F.trim(F.col("ZIP5")) =!= ""
-      )
+      ).persist(StorageLevel.MEMORY_AND_DISK)
 
     logger.info("dfHomeProperty dropDuplicates")
-    dfHomeProperty = dfHomeProperty.dropDuplicates("full_street_name_base_standardized", "ZIP5")
+    join_street_type_base_c1 = join_street_type_base_c1.dropDuplicates("full_street_name_base", "ZIP5")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
     logger.info("dfHs filter non-empty")
-    dfHs = dfHs
+    join_street_type_hs_c1 = join_street_type_hs_c1
       .filter(
-        F.col("full_street_name_hs_standardized").isNotNull && F.trim(F.col("full_street_name_hs_standardized")) =!= "" &&
+        F.col("full_street_name_hs").isNotNull && F.trim(F.col("full_street_name_hs")) =!= "" &&
           F.col("zip").isNotNull && F.trim(F.col("zip")) =!= ""
-      )
+      ).persist(StorageLevel.MEMORY_AND_DISK)
 
     logger.info("dfHs dropDuplicates")
-    dfHs = dfHs.dropDuplicates("full_street_name_hs", "zip")
+    join_street_type_hs_c1 = join_street_type_hs_c1.dropDuplicates("full_street_name_hs", "zip")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
     logger.info("dfRef filter non-empty")
-    dfRef = dfRef
+    join_street_type_ref_c1 = join_street_type_ref_c1
       .filter(
-        F.col("full_street_name_ref_standardized").isNotNull && F.trim(F.col("full_street_name_ref_standardized")) =!= "" &&
+        F.col("full_street_name_ref").isNotNull && F.trim(F.col("full_street_name_ref")) =!= "" &&
           F.col("zip").isNotNull && F.trim(F.col("zip")) =!= ""
-      )
+      ).persist(StorageLevel.MEMORY_AND_DISK)
+
 
     logger.info("dfRef dropDuplicates")
-    dfRef = dfRef.dropDuplicates("full_street_name_ref_standardized", "zip")
+    join_street_type_ref_c1 = join_street_type_ref_c1.dropDuplicates("full_street_name_ref", "zip")
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
-    val df_ref_columns = prefix_columns("ref", "ref", (dfRef.columns))
-    val df_base_columns = prefix_columns("base", "base", (dfHomeProperty.columns))
-    val df_hs_columns = prefix_columns("hs", "hs", (dfHs.columns))
-
-    // dfRef.show(truncate = false, numRows = 100)
-    // dfHs.show(truncate = false, numRows = 100)
-    // dfHomeProperty.show(truncate = false, numRows = 1000)
+    val df_ref_columns = prefix_columns("ref", "ref", (join_street_type_ref_c1.columns))
+    val df_base_columns = prefix_columns("base", "base", (join_street_type_base_c1.columns))
+    val df_hs_columns = prefix_columns("hs", "hs", (join_street_type_hs_c1.columns))
 
     logger.info("join dfHomeProperty - dfHs")
-    val joined_dfHomeProperty_dfHs = dfHomeProperty.alias("base")
-      .join(dfHs.alias("hs"),
+
+    val joined_dfHomeProperty_dfHs = join_street_type_base_c1.alias("base")
+      .join(join_street_type_hs_c1.alias("hs"),
         F.col("base.ZIP5") === F.col("hs.zip") &&
-          F.col("base.full_street_name_base_standardized") === F.col("hs.full_street_name_hs_standardized")
+          F.col("base.full_street_name_base") === F.col("hs.full_street_name_hs")
       )
       .select(df_hs_columns ++ df_base_columns: _*)
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
     logger.info("join dfHomeProperty - dfRef")
 
-    val joined_dfHomeProperty_dfRef = dfHomeProperty.alias("base")
-      .join(dfRef.alias("ref"),
+    val joined_dfHomeProperty_dfRef = join_street_type_base_c1.alias("base")
+      .join(join_street_type_ref_c1.alias("ref"),
         F.col("base.ZIP5") === F.col("ref.zip") &&
-          F.col("base.full_street_name_base_standardized") === F.col("ref.full_street_name_ref_standardized")
+          F.col("base.full_street_name_base") === F.col("ref.full_street_name_ref")
       )
       .select(df_ref_columns ++ df_base_columns: _*)
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
     logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfHs
+      .na.fill("")
+      .coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
@@ -275,16 +331,18 @@ object HomeProperty2 {
 
     logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfRef
+      .na.fill("")
+      .coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
       .csv(s"$homePropertyPath/df_join_ref_home_property")
 
-    // logger.info("joined_dfHomeProperty_dfHs")
-    // logger.info(joined_dfHomeProperty_dfHs.count())
+    logger.info("joined_dfHomeProperty_dfHs")
+    logger.info(joined_dfHomeProperty_dfHs.count())
 
-    // logger.info("joined_dfHomeProperty_dfRef")
-    // logger.info(joined_dfHomeProperty_dfRef.count())
+    logger.info("joined_dfHomeProperty_dfRef")
+    logger.info(joined_dfHomeProperty_dfRef.count())
 
     // result_dfHomeProperty_dfRef.show(truncate = false, numRows = 100)
     // resultDF_dfHomeProperty_dfHs.show(truncate = false, numRows = 100)

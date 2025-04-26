@@ -594,62 +594,29 @@ object AddressStandardizer {
     "WISCONSIN" -> "WI",
     "WYOMING" -> "WY"
   )
-
   def standardizeAddress(df: DataFrame, colName: String, outputColName: String): DataFrame = {
     // Apply the initial transformation (uppercasing the column)
-    val upperCaseDf = df.withColumn(outputColName, upper(col(colName)))
+    val upperCaseDf = df.withColumn("_uppercase_col_", upper(col(colName)))
 
-    // Clean the column
-    val cleanedDf = StringCleaner.cleanColumn(upperCaseDf, colName, outputColName)
+    // Clean the column (using a cleaning utility you defined)
+    val cleanedDf = StringCleaner.cleanColumn(upperCaseDf, "_uppercase_col_", "_cleaned_col_")
 
-    // Apply standardizeAddressC1 transformation
-    val c1Df = standardizeAddressC1(cleanedDf, colName, outputColName)
-
-    // Apply standardizeAddressC2 transformation
-    val c2Df = standardizeAddressC2(c1Df, colName, outputColName)
-
-    // Apply standardizeState transformation
-    val finalDf = standardizeState(c2Df,colName, outputColName)
-
-    // Return the final DataFrame
-    finalDf
-  }
-
-  private def standardizeAddressC1(df: DataFrame, colName: String, outputColName: String): DataFrame = {
-    var resultDf = df
-    for ((fullName, abbreviation) <- patternsC1) {
-      resultDf = resultDf.withColumn(
-        outputColName,
-        regexp_replace(col(colName), s"\\b$fullName\\b", abbreviation)
-      )
+    // Combine all patterns into a single transformation
+    val allPatterns = (patternsC1 ).map { case (fullName, abbreviation) =>
+      s"(?i)\\b$fullName\\b" -> abbreviation  // case-insensitive with word boundaries
     }
 
-    resultDf
-  }
-
-  private def standardizeAddressC2(df: DataFrame, colName: String, outputColName: String): DataFrame = {
-    var resultDf = df
-    for ((fullName, abbreviation) <- patternsC2) {
-      resultDf = resultDf.withColumn(
-        outputColName,
-        regexp_replace(col(colName), s"\\b$fullName\\b", abbreviation)
-      )
+    // Combine all the regex patterns and their abbreviations
+    val finalPattern = allPatterns.foldLeft(col("_cleaned_col_")) { (acc, pattern) =>
+      val (regex, replacement) = pattern
+      regexp_replace(acc, regex, replacement)
     }
 
-    resultDf
-  }
+    // Apply the combined transformations to the column
+    val resultDf = cleanedDf.withColumn(outputColName, finalPattern)
 
-  private def standardizeState(df: DataFrame, colName: String, outputColName: String): DataFrame = {
-    var resultDf = df
-
-    for ((fullName, abbreviation) <- statesMap) {
-      resultDf = resultDf.withColumn(
-        outputColName,
-          regexp_replace(col(colName), s"\\b$fullName\\b", abbreviation)
-      )
-    }
-
-    resultDf
+    // Final cleaning operation (if needed)
+    StringCleaner.cleanColumn(resultDf, outputColName, outputColName)
   }
 
 }

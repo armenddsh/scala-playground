@@ -5,12 +5,12 @@ import org.apache.spark.sql.functions._
 
 object StringCleaner {
 
-  def cleanColumn(df: DataFrame, outputCol: String, columnName: String): DataFrame = {
+  def cleanColumn(df: DataFrame,colName: String, outputColName: String): DataFrame = {
     df.withColumn(
-      outputCol,
+      outputColName,
       trim(
         regexp_replace(
-          regexp_replace(col(columnName), "[^A-Za-z0-9 ]+", ""),
+          regexp_replace(col(colName), "[^A-Za-z0-9 ]+", ""),
           "\\s+", " "
         )
       )
