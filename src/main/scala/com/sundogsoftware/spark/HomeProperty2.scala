@@ -23,7 +23,7 @@ object HomeProperty2 {
     val spark = SparkSession.builder()
       .appName("Scala Spark Home Property")
       .master("local[*]")
-      .config("spark.master", "local")
+      .config("spark.local.dir", "C:/temp")
       .config("spark.driver.memory", "20g")
       .config("spark.executor.memory", "2g")
       .config("spark.driver.memoryOverhead", "4g")
