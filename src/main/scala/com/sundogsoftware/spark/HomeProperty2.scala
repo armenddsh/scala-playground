@@ -46,11 +46,11 @@ object HomeProperty2 {
     val windowSpecRef = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
 
     val dfRefFull = dfRefCsv
-      .withColumn("id", row_number().over(windowSpecRef) - 1) // start id from 0
+      .withColumn("_id_ref", row_number().over(windowSpecRef) - 1) // start id from 0
       .persist(StorageLevel.MEMORY_AND_DISK)
 
     var dfRef = dfRefFull.select(
-      "id",
+      "_id_ref",
       "street_number",
       "direction_one",
       "street",
@@ -91,11 +91,11 @@ object HomeProperty2 {
     val windowSpecHs = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
 
     val dfHsFull = dfHsCsv
-      .withColumn("id", row_number().over(windowSpecHs) - 1) // start id from 0
+      .withColumn("_id_hs", row_number().over(windowSpecHs) - 1) // start id from 0
       .persist(StorageLevel.MEMORY_AND_DISK)
 
     var dfHs = dfHsFull.select(
-      "id",
+      "_id_hs",
       "street_number",
       "direction_one",
       "street",
@@ -117,11 +117,11 @@ object HomeProperty2 {
     val windowSpecBase = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
 
     val dfHomePropertyFull = dfHomePropertyCsv
-      .withColumn("id", row_number().over(windowSpecBase) - 1) // start id from 0
+      .withColumn("_id_base", row_number().over(windowSpecBase) - 1) // start id from 0
       .persist(StorageLevel.MEMORY_AND_DISK)
 
     var dfHomeProperty = dfHomePropertyFull.select(
-      "id",
+      "_id_base",
       "APN (PARCEL NUMBER UNFORMATTED)",
       "LAND USE CODE",
       "PROPERTY INDICATOR CODE",
@@ -458,8 +458,9 @@ object HomeProperty2 {
     logger.info("joined_dfHomeProperty_dfRef_not_matched.count()")
     logger.info(joined_dfHomeProperty_dfRef_not_matched.count())
 
-    dfHsFull
-      .join(joined_dfHomeProperty_dfHs, col("id_hs") === col("id_base"), "inner")
+    joined_dfHomeProperty_dfHs
+      .join(dfHsFull, col("_id_hs_hs") === col("_id_hs"), "inner")
+      .join(dfHomePropertyFull, col("_id_base_base") === col("_id_base"), "inner")
       .na.fill("")
       .coalesce(1)
       .write
@@ -467,8 +468,9 @@ object HomeProperty2 {
       .mode("overwrite")
       .csv(s"$homePropertyPath/dfHsFull")
 
-    dfRefFull
-      .join(joined_dfHomeProperty_dfRef, col("id_ref") === col("id_base"), "inner")
+    joined_dfHomeProperty_dfRef
+      .join(dfRefFull, col("_id_ref_ref") === col("_id_ref"), "inner")
+      .join(dfHomePropertyFull, col("_id_base_base") === col("_id_base"), "inner")
       .na.fill("")
       .coalesce(1)
       .write
