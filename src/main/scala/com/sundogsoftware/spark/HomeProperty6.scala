@@ -403,7 +403,6 @@ object HomeProperty6 {
 
     joined_dfHomeProperty_dfHs_not_matched
       .na.fill("")
-      .coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
@@ -413,7 +412,6 @@ object HomeProperty6 {
 
     joined_dfHomeProperty_dfRef_not_matched
       .na.fill("")
-      .coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
