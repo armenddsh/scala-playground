@@ -1,6 +1,7 @@
 package com.sundogsoftware.spark
 
 import org.apache.log4j._
+import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{SparkSession, functions => F}
 import org.apache.spark.storage.StorageLevel
@@ -42,8 +43,10 @@ object HomeProperty2 {
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$ref_filename")
 
+    val windowSpecRef = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
+
     val dfRefFull = dfRefCsv
-      .withColumn("id", F.monotonically_increasing_id())
+      .withColumn("id", row_number().over(windowSpecRef) - 1) // start id from 0
       .persist(StorageLevel.MEMORY_AND_DISK)
 
     var dfRef = dfRefFull.select(
@@ -85,8 +88,10 @@ object HomeProperty2 {
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$hs_filename")
 
+    val windowSpecHs = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
+
     val dfHsFull = dfHsCsv
-      .withColumn("id", F.monotonically_increasing_id())
+      .withColumn("id", row_number().over(windowSpecHs) - 1) // start id from 0
       .persist(StorageLevel.MEMORY_AND_DISK)
 
     var dfHs = dfHsFull.select(
@@ -109,8 +114,10 @@ object HomeProperty2 {
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$base_filename")
 
+    val windowSpecBase = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
+
     val dfHomePropertyFull = dfHomePropertyCsv
-      .withColumn("id", F.monotonically_increasing_id())
+      .withColumn("id", row_number().over(windowSpecBase) - 1) // start id from 0
       .persist(StorageLevel.MEMORY_AND_DISK)
 
     var dfHomeProperty = dfHomePropertyFull.select(
