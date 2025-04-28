@@ -12,16 +12,31 @@ object HomeProperty2 {
 
     val ref_filename = "Ref_202501_202502.csv" //
     val hs_filename = "HS_202501_202502.csv" //
-    val base_filename = "Property_202503_test.csv" // Property_202503_test.csv
+    val base_filename = "Property_202503.csv" // Property_202503_test.csv
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
+
+    val isRemote = true
+    val remoteDir = "/home/sshadmin/files"
+
+    val homePropertyPath = "C:/Users/armen/Desktop/HomeProperty"
+    var dir = ""
+    var tempDir = ""
+
+    if (isRemote) {
+      dir = remoteDir
+      tempDir = "/home/sshadmin/spark-temp"
+    } else {
+      dir = homePropertyPath
+      tempDir = "C:/temp"
+    }
 
     logger.info("Starting Spark session")
     val spark = SparkSession.builder()
       .appName("Scala Spark Home Property")
       .master("local[*]")
-      .config("spark.local.dir", "C:/temp")
+      .config("spark.local.dir", tempDir)
       .config("spark.driver.memory", "20g")
       .config("spark.executor.memory", "2g")
       .config("spark.driver.memoryOverhead", "4g")
@@ -32,7 +47,6 @@ object HomeProperty2 {
     val sc = spark.sparkContext
     sc.setLogLevel("INFO")
 
-    val homePropertyPath = "C:/Users/armen/Desktop/HomeProperty"
 
     logger.info("Reading input CSV files")
 
@@ -41,7 +55,7 @@ object HomeProperty2 {
     val dfRefCsv = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
-      .csv(s"$homePropertyPath/$ref_filename")
+      .csv(s"$dir/$ref_filename")
 
     val windowSpecRef = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
 
@@ -65,19 +79,19 @@ object HomeProperty2 {
     val c1Df = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
-      .csv(s"$homePropertyPath/C1.csv")
+      .csv(s"$dir/C1.csv")
 
     //    val c2Df = spark.read
     //      .option("header", value = true)
     //      .option("inferSchema", value = true)
-    //      .csv(s"$homePropertyPath/C2.csv")
+    //      .csv(s"dir/C2.csv")
     //      .persist(StorageLevel.MEMORY_AND_DISK)
     //    logger.info("Read REF_202501 successfully")
     //
     //    val statesDf = spark.read
     //      .option("header", value = true)
     //      .option("inferSchema", value = true)
-    //      .csv(s"$homePropertyPath/States.csv")
+    //      .csv(s"dir/States.csv")
     //      .persist(StorageLevel.MEMORY_AND_DISK)
 
     logger.info("REF_202501 COUNT: " + dfRef.count())
@@ -86,7 +100,7 @@ object HomeProperty2 {
     val dfHsCsv = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
-      .csv(s"$homePropertyPath/$hs_filename")
+      .csv(s"$dir/$hs_filename")
 
     val windowSpecHs = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
 
@@ -112,7 +126,7 @@ object HomeProperty2 {
     val dfHomePropertyCsv = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
-      .csv(s"$homePropertyPath/$base_filename")
+      .csv(s"$dir/$base_filename")
 
     val windowSpecBase = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
 
@@ -415,7 +429,7 @@ object HomeProperty2 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$homePropertyPath/df_join_hs_home_property_4_matched")
+      .csv(s"$dir/df_join_hs_home_property_4_matched")
 
     logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfRef
@@ -424,7 +438,7 @@ object HomeProperty2 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$homePropertyPath/df_join_ref_home_property_4_matched")
+      .csv(s"$dir/df_join_ref_home_property_4_matched")
 
     logger.info("Saving Home Sales - Home Property joined DataFrame Not matched to CSV")
 
@@ -434,7 +448,7 @@ object HomeProperty2 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$homePropertyPath/df_join_hs_home_property_4_not_matched")
+      .csv(s"$dir/df_join_hs_home_property_4_not_matched")
 
     logger.info("Saving Ref - Home Property joined Not matched DataFrame to CSV")
 
@@ -444,7 +458,7 @@ object HomeProperty2 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$homePropertyPath/df_join_ref_home_property_4_not_matched")
+      .csv(s"$dir/df_join_ref_home_property_4_not_matched")
 
     logger.info("joined_dfHomeProperty_dfHs.count()")
     logger.info(joined_dfHomeProperty_dfHs.count())
@@ -466,7 +480,7 @@ object HomeProperty2 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$homePropertyPath/dfHsFull")
+      .csv(s"$dir/dfHsFull")
 
     joined_dfHomeProperty_dfRef
       .join(dfRefFull, col("_id_ref_ref") === col("_id_ref"), "inner")
@@ -476,7 +490,7 @@ object HomeProperty2 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$homePropertyPath/dfRefFull")
+      .csv(s"$dir/dfRefFull")
 
     logger.info("Stopping Spark session")
     spark.stop()
