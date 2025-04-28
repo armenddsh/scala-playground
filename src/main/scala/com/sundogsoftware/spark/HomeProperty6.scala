@@ -324,9 +324,9 @@ object HomeProperty6 {
 
     logger.info("join dfHomeProperty - dfHs")
 
-//    join_street_type_base_c1 = join_street_type_base_c1.persist(StorageLevel.MEMORY_AND_DISK)
-//    join_street_type_hs_c1 = join_street_type_hs_c1.persist(StorageLevel.MEMORY_AND_DISK)
-//    join_street_type_ref_c1 = join_street_type_ref_c1.persist(StorageLevel.MEMORY_AND_DISK)
+    join_street_type_base_c1 = join_street_type_base_c1.persist(StorageLevel.MEMORY_AND_DISK)
+    join_street_type_hs_c1 = join_street_type_hs_c1.persist(StorageLevel.MEMORY_AND_DISK)
+    join_street_type_ref_c1 = join_street_type_ref_c1.persist(StorageLevel.MEMORY_AND_DISK)
 
     var joined_dfHomeProperty_dfHs = join_street_type_base_c1.alias("base")
       .join(join_street_type_hs_c1.alias("hs"),
@@ -378,10 +378,10 @@ object HomeProperty6 {
         "leftanti"
       )
 
-    joined_dfHomeProperty_dfHs = joined_dfHomeProperty_dfHs.persist(StorageLevel.MEMORY_AND_DISK)
-    joined_dfHomeProperty_dfRef = joined_dfHomeProperty_dfRef.persist(StorageLevel.MEMORY_AND_DISK)
-    joined_dfHomeProperty_dfHs_not_matched = joined_dfHomeProperty_dfHs_not_matched.persist(StorageLevel.MEMORY_AND_DISK)
-    joined_dfHomeProperty_dfRef_not_matched = joined_dfHomeProperty_dfRef_not_matched.persist(StorageLevel.MEMORY_AND_DISK)
+    // joined_dfHomeProperty_dfHs = joined_dfHomeProperty_dfHs.persist(StorageLevel.MEMORY_AND_DISK)
+    // joined_dfHomeProperty_dfRef = joined_dfHomeProperty_dfRef.persist(StorageLevel.MEMORY_AND_DISK)
+    // joined_dfHomeProperty_dfHs_not_matched = joined_dfHomeProperty_dfHs_not_matched.persist(StorageLevel.MEMORY_AND_DISK)
+    // joined_dfHomeProperty_dfRef_not_matched = joined_dfHomeProperty_dfRef_not_matched.persist(StorageLevel.MEMORY_AND_DISK)
 
     logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfHs
@@ -401,33 +401,33 @@ object HomeProperty6 {
 
     logger.info("Saving Home Sales - Home Property joined DataFrame Not matched to CSV")
 
-    joined_dfHomeProperty_dfHs_not_matched
-      .na.fill("")
-      .write
-      .option("header", "true")
-      .mode("overwrite")
-      .csv(s"$dir/df_join_hs_home_property_4_not_matched")
+//    joined_dfHomeProperty_dfHs_not_matched
+//      .na.fill("")
+//      .write
+//      .option("header", "true")
+//      .mode("overwrite")
+//      .csv(s"$dir/df_join_hs_home_property_4_not_matched")
+//
+//    logger.info("Saving Ref - Home Property joined Not matched DataFrame to CSV")
+//
+//    joined_dfHomeProperty_dfRef_not_matched
+//      .na.fill("")
+//      .write
+//      .option("header", "true")
+//      .mode("overwrite")
+//      .csv(s"$dir/df_join_ref_home_property_4_not_matched")
 
-    logger.info("Saving Ref - Home Property joined Not matched DataFrame to CSV")
-
-    joined_dfHomeProperty_dfRef_not_matched
-      .na.fill("")
-      .write
-      .option("header", "true")
-      .mode("overwrite")
-      .csv(s"$dir/df_join_ref_home_property_4_not_matched")
-
-    logger.info("joined_dfHomeProperty_dfHs.count()")
-    logger.info(joined_dfHomeProperty_dfHs.count())
-
-    logger.info("joined_dfHomeProperty_dfRef")
-    logger.info(joined_dfHomeProperty_dfRef.count())
-
-    logger.info("joined_dfHomeProperty_dfHs_not_matched.count()")
-    logger.info(joined_dfHomeProperty_dfHs_not_matched.count())
-
-    logger.info("joined_dfHomeProperty_dfRef_not_matched.count()")
-    logger.info(joined_dfHomeProperty_dfRef_not_matched.count())
+//    logger.info("joined_dfHomeProperty_dfHs.count()")
+//    logger.info(joined_dfHomeProperty_dfHs.count())
+//
+//    logger.info("joined_dfHomeProperty_dfRef")
+//    logger.info(joined_dfHomeProperty_dfRef.count())
+//
+//    logger.info("joined_dfHomeProperty_dfHs_not_matched.count()")
+//    logger.info(joined_dfHomeProperty_dfHs_not_matched.count())
+//
+//    logger.info("joined_dfHomeProperty_dfRef_not_matched.count()")
+//    logger.info(joined_dfHomeProperty_dfRef_not_matched.count())
 
     logger.info("Stopping Spark session")
     spark.stop()
