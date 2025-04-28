@@ -7,15 +7,11 @@ import org.apache.spark.storage.StorageLevel
 
 object HomeProperty2 {
 
-  private def prefix_columns(prefix: String, long_prefix: String, columns: Array[String]): Array[org.apache.spark.sql.Column] = {
-    columns.map(col => F.col(s"$prefix.$col").alias(s"${col}_$long_prefix"))
-  }
-
   def main(args: Array[String]): Unit = {
 
     val ref_filename = "Ref_202501_202502.csv" //
     val hs_filename = "HS_202501_202502.csv" //
-    val base_filename = "Property_202503_test.csv" // Property_202503_test.csv
+    val base_filename = "Property_202503.csv" // Property_202503_test.csv
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
@@ -323,9 +319,9 @@ object HomeProperty2 {
           F.col("zip").isNotNull && F.trim(F.col("zip")) =!= ""
       )
 
-    val df_ref_columns = prefix_columns("ref", "ref", (join_street_type_ref_c1.columns))
-    val df_base_columns = prefix_columns("base", "base", (join_street_type_base_c1.columns))
-    val df_hs_columns = prefix_columns("hs", "hs", (join_street_type_hs_c1.columns))
+    val df_ref_columns = Utils.prefix_columns("ref", "ref", (join_street_type_ref_c1.columns))
+    val df_base_columns = Utils.prefix_columns("base", "base", (join_street_type_base_c1.columns))
+    val df_hs_columns = Utils.prefix_columns("hs", "hs", (join_street_type_hs_c1.columns))
 
     logger.info("join dfHomeProperty - dfHs")
 
