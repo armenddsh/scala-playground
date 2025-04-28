@@ -324,9 +324,9 @@ object HomeProperty6 {
 
     logger.info("join dfHomeProperty - dfHs")
 
-    join_street_type_base_c1 = join_street_type_base_c1.persist(StorageLevel.MEMORY_AND_DISK)
-    join_street_type_hs_c1 = join_street_type_hs_c1.persist(StorageLevel.MEMORY_AND_DISK)
-    join_street_type_ref_c1 = join_street_type_ref_c1.persist(StorageLevel.MEMORY_AND_DISK)
+//    join_street_type_base_c1 = join_street_type_base_c1.persist(StorageLevel.MEMORY_AND_DISK)
+//    join_street_type_hs_c1 = join_street_type_hs_c1.persist(StorageLevel.MEMORY_AND_DISK)
+//    join_street_type_ref_c1 = join_street_type_ref_c1.persist(StorageLevel.MEMORY_AND_DISK)
 
     var joined_dfHomeProperty_dfHs = join_street_type_base_c1.alias("base")
       .join(join_street_type_hs_c1.alias("hs"),
@@ -386,7 +386,6 @@ object HomeProperty6 {
     logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfHs
       .na.fill("")
-      .coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
@@ -395,7 +394,6 @@ object HomeProperty6 {
     logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfRef
       .na.fill("")
-      .coalesce(1)
       .write
       .option("header", "true")
       .mode("overwrite")
