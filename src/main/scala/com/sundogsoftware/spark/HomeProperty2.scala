@@ -36,12 +36,17 @@ object HomeProperty2 {
     logger.info("Reading input CSV files")
 
     logger.info("Reading REF_202501")
-    var dfRef = spark.read
+
+    val dfRefCsv = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$ref_filename")
 
-    dfRef = dfRef.select(
+    val dfRefFull = dfRefCsv
+      .withColumn("id", F.monotonically_increasing_id())
+      .persist(StorageLevel.MEMORY_AND_DISK)
+
+    var dfRef = dfRefFull.select(
       "street_number",
       "direction_one",
       "street",
@@ -74,12 +79,17 @@ object HomeProperty2 {
     logger.info("REF_202501 COUNT: " + dfRef.count())
 
     logger.info("Reading HS_202501")
-    var dfHs = spark.read
+    val dfHsCsv = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$hs_filename")
 
-    dfHs = dfHs.select(
+    val dfHsFull = dfHsCsv
+      .withColumn("id", F.monotonically_increasing_id())
+      .persist(StorageLevel.MEMORY_AND_DISK)
+
+    var dfHs = dfHsFull.select(
+      "id",
       "street_number",
       "direction_one",
       "street",
@@ -93,14 +103,16 @@ object HomeProperty2 {
 
     logger.info("Read HS_202501 successfully")
 
-    var dfHomeProperty = spark.read
+    val dfHomePropertyCsv = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
       .csv(s"$homePropertyPath/$base_filename")
 
-    dfHomeProperty = dfHomeProperty.withColumn("id", F.monotonically_increasing_id())
+    val dfHomePropertyFull = dfHomePropertyCsv
+      .withColumn("id", F.monotonically_increasing_id())
+      .persist(StorageLevel.MEMORY_AND_DISK)
 
-    dfHomeProperty = dfHomeProperty.select(
+    var dfHomeProperty = dfHomePropertyFull.select(
       "id",
       "APN (PARCEL NUMBER UNFORMATTED)",
       "LAND USE CODE",
@@ -437,6 +449,24 @@ object HomeProperty2 {
 
     logger.info("joined_dfHomeProperty_dfRef_not_matched.count()")
     logger.info(joined_dfHomeProperty_dfRef_not_matched.count())
+
+    dfHsFull
+      .join(joined_dfHomeProperty_dfHs, Seq("id"), "right")
+      .na.fill("")
+      .coalesce(1)
+      .write
+      .option("header", "true")
+      .mode("overwrite")
+      .csv(s"$homePropertyPath/dfHsFull")
+
+    dfRefFull
+      .join(joined_dfHomeProperty_dfRef, Seq("id"), "right")
+      .na.fill("")
+      .coalesce(1)
+      .write
+      .option("header", "true")
+      .mode("overwrite")
+      .csv(s"$homePropertyPath/dfRefFull")
 
     logger.info("Stopping Spark session")
     spark.stop()
