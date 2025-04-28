@@ -15,7 +15,7 @@ object HomeProperty2 {
 
     val ref_filename = "Ref_202501_202502.csv" //
     val hs_filename = "HS_202501_202502.csv" //
-    val base_filename = "Property_202503.csv" // Property_202503_test.csv
+    val base_filename = "Property_202503_test.csv" // Property_202503_test.csv
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
@@ -382,7 +382,7 @@ object HomeProperty2 {
           (
             col("base.full_street_name_base") === col("ref.full_street_name_ref") ||
               col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref") ||
-              col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_no_suite")
+              col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref_no_suite")
             ),
         "leftanti"
       )
