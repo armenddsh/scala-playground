@@ -6,7 +6,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{SparkSession, functions => F}
 import org.apache.spark.storage.StorageLevel
 
-object HomeProperty2 {
+object HomeProperty6 {
 
   def main(args: Array[String]): Unit = {
 
@@ -37,16 +37,16 @@ object HomeProperty2 {
       .appName("Scala Spark Home Property")
       .master("local[*]")
       .config("spark.local.dir", tempDir)
-      .config("spark.driver.memory", "20g")
-      .config("spark.executor.memory", "2g")
-      .config("spark.driver.memoryOverhead", "4g")
+      .config("spark.driver.memory", "100g")
+      .config("spark.executor.memory", "4g")
+      .config("spark.driver.memoryOverhead", "8g")
       .config("spark.sql.debug.maxToStringFields", "1000")
       .config("spark.sql.execution.arrow.pyspark.enabled", "true")
       .getOrCreate()
 
     val sc = spark.sparkContext
     sc.setLogLevel("INFO")
-
+    
     logger.info("Reading input CSV files")
 
     logger.info("Reading REF_202501")
@@ -56,14 +56,7 @@ object HomeProperty2 {
       .option("inferSchema", value = true)
       .csv(s"$dir/$ref_filename")
 
-    val windowSpecRef = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
-
-    val dfRefFull = dfRefCsv
-      .withColumn("_id_ref", row_number().over(windowSpecRef) - 1) // start id from 0
-      .persist(StorageLevel.MEMORY_AND_DISK)
-
-    var dfRef = dfRefFull.select(
-      "_id_ref",
+    var dfRef = dfRefCsv.select(
       "street_number",
       "direction_one",
       "street",
@@ -80,19 +73,6 @@ object HomeProperty2 {
       .option("inferSchema", value = true)
       .csv(s"$dir/C1.csv")
 
-    //    val c2Df = spark.read
-    //      .option("header", value = true)
-    //      .option("inferSchema", value = true)
-    //      .csv(s"dir/C2.csv")
-    //      .persist(StorageLevel.MEMORY_AND_DISK)
-    //    logger.info("Read REF_202501 successfully")
-    //
-    //    val statesDf = spark.read
-    //      .option("header", value = true)
-    //      .option("inferSchema", value = true)
-    //      .csv(s"dir/States.csv")
-    //      .persist(StorageLevel.MEMORY_AND_DISK)
-
     logger.info("REF_202501 COUNT: " + dfRef.count())
 
     logger.info("Reading HS_202501")
@@ -101,14 +81,7 @@ object HomeProperty2 {
       .option("inferSchema", value = true)
       .csv(s"$dir/$hs_filename")
 
-    val windowSpecHs = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
-
-    val dfHsFull = dfHsCsv
-      .withColumn("_id_hs", row_number().over(windowSpecHs) - 1) // start id from 0
-      .persist(StorageLevel.MEMORY_AND_DISK)
-
-    var dfHs = dfHsFull.select(
-      "_id_hs",
+    var dfHs = dfHsCsv.select(
       "street_number",
       "direction_one",
       "street",
@@ -127,14 +100,7 @@ object HomeProperty2 {
       .option("inferSchema", value = true)
       .csv(s"$dir/$base_filename")
 
-    val windowSpecBase = Window.orderBy(lit(1)) // order by a constant to create a stable row_number
-
-    val dfHomePropertyFull = dfHomePropertyCsv
-      .withColumn("_id_base", row_number().over(windowSpecBase) - 1) // start id from 0
-      .persist(StorageLevel.MEMORY_AND_DISK)
-
-    var dfHomeProperty = dfHomePropertyFull.select(
-      "_id_base",
+    var dfHomeProperty = dfHomePropertyCsv.select(
       "APN (PARCEL NUMBER UNFORMATTED)",
       "LAND USE CODE",
       "PROPERTY INDICATOR CODE",
@@ -352,15 +318,11 @@ object HomeProperty2 {
           F.col("zip").isNotNull && F.trim(F.col("zip")) =!= ""
       )
 
-    val df_ref_columns = Utils.prefix_columns("ref", "ref", (join_street_type_ref_c1.columns))
-    val df_base_columns = Utils.prefix_columns("base", "base", (join_street_type_base_c1.columns))
-    val df_hs_columns = Utils.prefix_columns("hs", "hs", (join_street_type_hs_c1.columns))
+    val df_ref_columns = Utils.prefix_columns("ref", "ref", join_street_type_ref_c1.columns)
+    val df_base_columns = Utils.prefix_columns("base", "base", join_street_type_base_c1.columns)
+    val df_hs_columns = Utils.prefix_columns("hs", "hs", join_street_type_hs_c1.columns)
 
     logger.info("join dfHomeProperty - dfHs")
-
-    //    join_street_type_base_c1.show(truncate = false, numRows = 1000)
-    //    join_street_type_hs_c1.show(truncate = false, numRows = 1000)
-    //    join_street_type_ref_c1.show(truncate = false, numRows = 1000)
 
     join_street_type_base_c1 = join_street_type_base_c1.persist(StorageLevel.MEMORY_AND_DISK)
     join_street_type_hs_c1 = join_street_type_hs_c1.persist(StorageLevel.MEMORY_AND_DISK)
@@ -470,26 +432,6 @@ object HomeProperty2 {
 
     logger.info("joined_dfHomeProperty_dfRef_not_matched.count()")
     logger.info(joined_dfHomeProperty_dfRef_not_matched.count())
-
-    joined_dfHomeProperty_dfHs
-      .join(dfHsFull, col("_id_hs_hs") === col("_id_hs"), "inner")
-      .join(dfHomePropertyFull, col("_id_base_base") === col("_id_base"), "inner")
-      .na.fill("")
-      .coalesce(1)
-      .write
-      .option("header", "true")
-      .mode("overwrite")
-      .csv(s"$dir/dfHsFull")
-
-    joined_dfHomeProperty_dfRef
-      .join(dfRefFull, col("_id_ref_ref") === col("_id_ref"), "inner")
-      .join(dfHomePropertyFull, col("_id_base_base") === col("_id_base"), "inner")
-      .na.fill("")
-      .coalesce(1)
-      .write
-      .option("header", "true")
-      .mode("overwrite")
-      .csv(s"$dir/dfRefFull")
 
     logger.info("Stopping Spark session")
     spark.stop()
