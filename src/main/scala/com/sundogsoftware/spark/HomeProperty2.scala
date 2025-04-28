@@ -11,7 +11,7 @@ object HomeProperty2 {
 
     val ref_filename = "Ref_202501_202502.csv" //
     val hs_filename = "HS_202501_202502.csv" //
-    val base_filename = "Property_202503.csv" // Property_202503_test.csv
+    val base_filename = "Property_202503_test.csv" // Property_202503_test.csv
 
     Logger.getLogger("org").setLevel(Level.ERROR)
     val logger = Logger.getLogger(this.getClass)
@@ -47,6 +47,7 @@ object HomeProperty2 {
       .persist(StorageLevel.MEMORY_AND_DISK)
 
     var dfRef = dfRefFull.select(
+      "id",
       "street_number",
       "direction_one",
       "street",
@@ -451,7 +452,7 @@ object HomeProperty2 {
     logger.info(joined_dfHomeProperty_dfRef_not_matched.count())
 
     dfHsFull
-      .join(joined_dfHomeProperty_dfHs, Seq("id"), "right")
+      .join(joined_dfHomeProperty_dfHs, col("id_hs") === col("id_base"), "inner")
       .na.fill("")
       .coalesce(1)
       .write
@@ -460,7 +461,7 @@ object HomeProperty2 {
       .csv(s"$homePropertyPath/dfHsFull")
 
     dfRefFull
-      .join(joined_dfHomeProperty_dfRef, Seq("id"), "right")
+      .join(joined_dfHomeProperty_dfRef, col("id_ref") === col("id_base"), "inner")
       .na.fill("")
       .coalesce(1)
       .write
