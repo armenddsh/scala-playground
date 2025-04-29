@@ -153,9 +153,52 @@ object HomeProperty6 {
     logger.info("Creating column full_street_name_hs")
 
     join_street_type_hs_c1 = join_street_type_hs_c1.withColumn(
+      "street_number",
+      F.ltrim(F.col("street_number"), "0")
+    )
+
+    join_street_type_ref_c1 = join_street_type_ref_c1.withColumn(
+      "street_number",
+      F.ltrim(F.col("street_number"), "0")
+    )
+
+    join_street_type_hs_c1 = join_street_type_hs_c1.withColumn(
+      "street_number",
+      F.ltrim(F.col("street_number"), "0")
+    )
+
+    //
+    join_street_type_ref_c1 = join_street_type_ref_c1.withColumn(
+      "street_number_alt",
+      F.regexp_replace(F.col("street_number"), "^([0-9]+)[A-Za-z]$", "$1")
+    )
+
+    join_street_type_hs_c1 = join_street_type_hs_c1.withColumn(
+      "street_number_alt",
+      F.regexp_replace(F.col("street_number"), "^([0-9]+)[A-Za-z]$", "$1")
+    )
+
+    join_street_type_hs_c1 = join_street_type_hs_c1.withColumn(
       "full_street_name_hs",
       upper(F.concat_ws("",
         F.coalesce(F.col("street_number"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("direction_one"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("street"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("STD_street_type_c1"), F.col("street_type"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("direction_two"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("suite"), F.lit(""))
+      ))
+    )
+
+    join_street_type_hs_c1 = join_street_type_hs_c1.withColumn(
+      "full_street_name_hs_alt",
+      upper(F.concat_ws("",
+        F.coalesce(F.col("street_number_alt"), F.lit("")),
         F.lit(" "),
         F.coalesce(F.col("direction_one"), F.lit("")),
         F.lit(" "),
@@ -204,6 +247,23 @@ object HomeProperty6 {
     )
 
     join_street_type_ref_c1 = join_street_type_ref_c1.withColumn(
+      "full_street_name_ref_alt",
+      upper(F.concat_ws("",
+        F.coalesce(F.col("street_number_alt"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("direction_one"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("street"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("STD_street_type_c1"), F.col("street_type"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("direction_two"), F.lit("")),
+        F.lit(" "),
+        F.coalesce(F.col("suite"), F.lit(""))
+      ))
+    )
+
+    join_street_type_ref_c1 = join_street_type_ref_c1.withColumn(
       "full_street_name_ref_no_suite",
       upper(F.concat_ws("",
         F.coalesce(F.col("street_number"), F.lit("")),
@@ -233,6 +293,11 @@ object HomeProperty6 {
         F.lit(" "),
         F.coalesce(F.col("SITUS UNIT NUMBER"), F.lit(""))
       ))
+    )
+
+    join_street_type_base_c1 = join_street_type_base_c1.withColumn(
+      "SITUS STREET ADDRESS ORIGINAL",
+      F.col("SITUS STREET ADDRESS")
     )
 
     join_street_type_base_c1 = join_street_type_base_c1.withColumn(
@@ -297,27 +362,6 @@ object HomeProperty6 {
     join_street_type_hs_c1 = StringCleaner
       .cleanColumn(join_street_type_hs_c1, "full_street_name_hs_no_suite", "full_street_name_hs_no_suite")
 
-    join_street_type_base_c1 = join_street_type_base_c1
-      .filter(
-        F.col("full_street_name_base_no_suite").isNotNull && F.trim(F.col("full_street_name_base_no_suite")) =!= "" &&
-          F.col("ZIP5").isNotNull && F.trim(F.col("ZIP5")) =!= ""
-      )
-
-    logger.info("dfHs filter non-empty")
-    join_street_type_hs_c1 = join_street_type_hs_c1
-      .filter(
-        F.col("full_street_name_hs_no_suite").isNotNull && F.trim(F.col("full_street_name_hs_no_suite")) =!= "" &&
-          F.col("zip").isNotNull && F.trim(F.col("zip")) =!= ""
-      )
-
-
-    logger.info("dfRef filter non-empty")
-    join_street_type_ref_c1 = join_street_type_ref_c1
-      .filter(
-        F.col("full_street_name_ref_no_suite").isNotNull && F.trim(F.col("full_street_name_ref_no_suite")) =!= "" &&
-          F.col("zip").isNotNull && F.trim(F.col("zip")) =!= ""
-      )
-
     val df_ref_columns = Utils.prefix_columns("ref", "ref", join_street_type_ref_c1.columns)
     val df_base_columns = Utils.prefix_columns("base", "base", join_street_type_base_c1.columns)
     val df_hs_columns = Utils.prefix_columns("hs", "hs", join_street_type_hs_c1.columns)
@@ -328,60 +372,35 @@ object HomeProperty6 {
     join_street_type_hs_c1 = join_street_type_hs_c1.persist(StorageLevel.MEMORY_AND_DISK)
     join_street_type_ref_c1 = join_street_type_ref_c1.persist(StorageLevel.MEMORY_AND_DISK)
 
-    var joined_dfHomeProperty_dfHs = join_street_type_base_c1.alias("base")
+    val joined_dfHomeProperty_dfHs = join_street_type_base_c1.alias("base")
       .join(join_street_type_hs_c1.alias("hs"),
         col("base.ZIP5") === col("hs.zip") &&
           (
             col("base.full_street_name_base") === col("hs.full_street_name_hs") ||
+              col("base.full_street_name_base") === col("hs.full_street_name_hs_alt") ||
               col("base.`SITUS STREET ADDRESS`") === col("hs.full_street_name_hs") ||
+              col("base.`SITUS STREET ADDRESS`") === col("hs.full_street_name_hs_alt") ||
               col("base.`SITUS STREET ADDRESS`") === col("hs.full_street_name_hs_no_suite")
             ),
-        "inner"
+        "right"
       )
       .select(df_hs_columns ++ df_base_columns: _*)
 
     logger.info("join dfHomeProperty - dfRef")
 
-    var joined_dfHomeProperty_dfRef = join_street_type_base_c1.alias("base")
+    val joined_dfHomeProperty_dfRef = join_street_type_base_c1.alias("base")
       .join(join_street_type_ref_c1.alias("ref"),
         col("base.ZIP5") === col("ref.zip") &&
           (
             col("base.full_street_name_base") === col("ref.full_street_name_ref") ||
+              col("base.full_street_name_base") === col("ref.full_street_name_ref_alt") ||
               col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref") ||
+              col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref_alt") ||
               col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref_no_suite")
             ),
-        "inner"
+        "right"
       )
       .select(df_ref_columns ++ df_base_columns: _*)
-
-    var joined_dfHomeProperty_dfHs_not_matched = join_street_type_hs_c1.alias("hs")
-      .join(join_street_type_base_c1.alias("base"),
-        col("base.ZIP5") === col("hs.zip") &&
-          (
-            col("base.full_street_name_base") === col("hs.full_street_name_hs") ||
-              col("base.`SITUS STREET ADDRESS`") === col("hs.full_street_name_hs") ||
-              col("base.`SITUS STREET ADDRESS`") === col("hs.full_street_name_hs_no_suite")
-            ),
-        "leftanti"
-      )
-
-    logger.info("join dfHomeProperty - dfRef")
-
-    var joined_dfHomeProperty_dfRef_not_matched = join_street_type_ref_c1.alias("ref")
-      .join(join_street_type_base_c1.alias("base"),
-        col("base.ZIP5") === col("ref.zip") &&
-          (
-            col("base.full_street_name_base") === col("ref.full_street_name_ref") ||
-              col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref") ||
-              col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref_no_suite")
-            ),
-        "leftanti"
-      )
-
-    // joined_dfHomeProperty_dfHs = joined_dfHomeProperty_dfHs.persist(StorageLevel.MEMORY_AND_DISK)
-    // joined_dfHomeProperty_dfRef = joined_dfHomeProperty_dfRef.persist(StorageLevel.MEMORY_AND_DISK)
-    // joined_dfHomeProperty_dfHs_not_matched = joined_dfHomeProperty_dfHs_not_matched.persist(StorageLevel.MEMORY_AND_DISK)
-    // joined_dfHomeProperty_dfRef_not_matched = joined_dfHomeProperty_dfRef_not_matched.persist(StorageLevel.MEMORY_AND_DISK)
 
     logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfHs
@@ -389,7 +408,9 @@ object HomeProperty6 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$dir/df_join_hs_home_property_4_matched")
+      .csv(s"$dir/df_join_hs_home_property_7_matched")
+
+    logger.info("Saving Ref - Home Property joined Not matched DataFrame to CSV")
 
     logger.info("Saving Refinance - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfRef
@@ -397,25 +418,7 @@ object HomeProperty6 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$dir/df_join_ref_home_property_4_matched")
-
-    logger.info("Saving Home Sales - Home Property joined DataFrame Not matched to CSV")
-
-//    joined_dfHomeProperty_dfHs_not_matched
-//      .na.fill("")
-//      .write
-//      .option("header", "true")
-//      .mode("overwrite")
-//      .csv(s"$dir/df_join_hs_home_property_4_not_matched")
-//
-//    logger.info("Saving Ref - Home Property joined Not matched DataFrame to CSV")
-//
-//    joined_dfHomeProperty_dfRef_not_matched
-//      .na.fill("")
-//      .write
-//      .option("header", "true")
-//      .mode("overwrite")
-//      .csv(s"$dir/df_join_ref_home_property_4_not_matched")
+      .csv(s"$dir/df_join_ref_home_property_7_matched")
 
 //    logger.info("joined_dfHomeProperty_dfHs.count()")
 //    logger.info(joined_dfHomeProperty_dfHs.count())
