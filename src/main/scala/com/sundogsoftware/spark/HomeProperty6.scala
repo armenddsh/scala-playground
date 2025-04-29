@@ -68,7 +68,7 @@ object HomeProperty6 {
       "zip"
     )
 
-    val c1Df = spark.read
+    var c1Df = spark.read
       .option("header", value = true)
       .option("inferSchema", value = true)
       .csv(s"$dir/C1.csv")
@@ -366,41 +366,45 @@ object HomeProperty6 {
     val df_base_columns = Utils.prefix_columns("base", "base", join_street_type_base_c1.columns)
     val df_hs_columns = Utils.prefix_columns("hs", "hs", join_street_type_hs_c1.columns)
 
-    logger.info("join dfHomeProperty - dfHs")
-
     join_street_type_base_c1 = join_street_type_base_c1.persist(StorageLevel.MEMORY_AND_DISK)
     join_street_type_hs_c1 = join_street_type_hs_c1.persist(StorageLevel.MEMORY_AND_DISK)
     join_street_type_ref_c1 = join_street_type_ref_c1.persist(StorageLevel.MEMORY_AND_DISK)
 
-    val joined_dfHomeProperty_dfHs = join_street_type_base_c1.alias("base")
-      .join(join_street_type_hs_c1.alias("hs"),
-        col("base.ZIP5") === col("hs.zip") &&
+    logger.info("join dfHomeProperty - dfHs")
+
+    val joined_dfHomeProperty_dfHs = join_street_type_hs_c1.alias("hs")
+      .join(join_street_type_base_c1.alias("base"),
+        col("hs.zip") === col("base.ZIP5") &&
           (
-            col("base.full_street_name_base") === col("hs.full_street_name_hs") ||
-              col("base.full_street_name_base") === col("hs.full_street_name_hs_alt") ||
-              col("base.`SITUS STREET ADDRESS`") === col("hs.full_street_name_hs") ||
-              col("base.`SITUS STREET ADDRESS`") === col("hs.full_street_name_hs_alt") ||
-              col("base.`SITUS STREET ADDRESS`") === col("hs.full_street_name_hs_no_suite")
+             col("hs.full_street_name_hs") === col("base.full_street_name_base") ||
+               col("hs.full_street_name_hs_alt") === col("base.full_street_name_base") ||
+               col("hs.full_street_name_hs") === col("base.`SITUS STREET ADDRESS`") ||
+               col("hs.full_street_name_hs_alt") === col("base.`SITUS STREET ADDRESS`") ||
+               col("hs.full_street_name_hs_no_suite")  === col("base.`SITUS STREET ADDRESS`")
             ),
-        "right"
+        "left"
       )
       .select(df_hs_columns ++ df_base_columns: _*)
 
+    joined_dfHomeProperty_dfHs.show(truncate = false)
+
     logger.info("join dfHomeProperty - dfRef")
 
-    val joined_dfHomeProperty_dfRef = join_street_type_base_c1.alias("base")
-      .join(join_street_type_ref_c1.alias("ref"),
+    val joined_dfHomeProperty_dfRef = join_street_type_ref_c1.alias("ref")
+      .join(join_street_type_base_c1.alias("base"),
         col("base.ZIP5") === col("ref.zip") &&
           (
-            col("base.full_street_name_base") === col("ref.full_street_name_ref") ||
-              col("base.full_street_name_base") === col("ref.full_street_name_ref_alt") ||
-              col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref") ||
-              col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref_alt") ||
-              col("base.`SITUS STREET ADDRESS`") === col("ref.full_street_name_ref_no_suite")
+              col("ref.full_street_name_ref") === col("base.full_street_name_base") ||
+                col("ref.full_street_name_ref_alt") === col("base.full_street_name_base") ||
+                col("ref.full_street_name_ref") === col("base.`SITUS STREET ADDRESS`") ||
+                col("ref.full_street_name_ref_alt") === col("base.`SITUS STREET ADDRESS`") ||
+                col("ref.full_street_name_ref_no_suite") === col("base.`SITUS STREET ADDRESS`")
             ),
-        "right"
+        "left"
       )
       .select(df_ref_columns ++ df_base_columns: _*)
+
+    joined_dfHomeProperty_dfRef.show(truncate = false)
 
     logger.info("Saving Home Sales - Home Property joined DataFrame to CSV")
     joined_dfHomeProperty_dfHs
@@ -408,7 +412,7 @@ object HomeProperty6 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$dir/df_join_hs_home_property_7_matched")
+      .csv(s"$dir/df_join_hs_home_property_8_matched")
 
     logger.info("Saving Ref - Home Property joined Not matched DataFrame to CSV")
 
@@ -418,7 +422,7 @@ object HomeProperty6 {
       .write
       .option("header", "true")
       .mode("overwrite")
-      .csv(s"$dir/df_join_ref_home_property_7_matched")
+      .csv(s"$dir/df_join_ref_home_property_8_matched")
 
 //    logger.info("joined_dfHomeProperty_dfHs.count()")
 //    logger.info(joined_dfHomeProperty_dfHs.count())
